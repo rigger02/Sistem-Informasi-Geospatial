@@ -1,0 +1,628 @@
+/* JASINDO — restrained dark UI theme, adapted to the original geospatial dashboard palette. */
+:root {
+  color-scheme: dark;
+  --navy: #0b1421;
+  --navy-2: #111b2a;
+  --blue: #3b82f6;
+  --blue-soft: #172c48;
+  --teal: #4f83a8;
+  --ink: #e8edf6;
+  --muted: #8ea0bb;
+  --line: #263650;
+  --surface: #131d2d;
+  --bg: #0d1421;
+  --red: #ef4444;
+  --orange: #f97316;
+  --green: #22c55e;
+  --shadow: 0 12px 34px rgba(0,0,0,.22);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+html, body, #root { width: 100%; height: 100%; min-height: 100%; }
+body { background: var(--bg); color: var(--ink); overflow: hidden; }
+input, select, textarea { color: var(--ink); }
+button { color: inherit; }
+
+/* Login */
+.jasindo-login-screen {
+  min-height: 100vh;
+  height: 100vh;
+  grid-template-columns: minmax(0, 1fr) minmax(390px, 470px);
+  background: #0d1421;
+}
+.jasindo-login-screen .login-brand-panel {
+  min-height: 100vh;
+  padding: 34px clamp(28px, 6vw, 82px) 28px;
+  color: #e8edf6;
+  background: #0d1421;
+  border-right: 1px solid #263650;
+  isolation: isolate;
+}
+.jasindo-login-screen .login-brand-panel::before {
+  width: 640px; height: 640px; right: -260px; bottom: -330px;
+  border-color: rgba(87,132,183,.12);
+}
+.jasindo-login-screen .login-brand-panel::after {
+  width: 440px; height: 440px; right: -160px; bottom: -230px;
+  border-color: rgba(87,132,183,.10);
+}
+.jasindo-login-brand { display: inline-flex; align-items: center; gap: 11px; position: relative; z-index: 1; }
+.jasindo-login-brand > span:last-child { display: grid; gap: 2px; }
+.jasindo-login-brand b { color: #f1f4f8; font-size: .92rem; letter-spacing: .16em; }
+.jasindo-login-brand small { color: #8ea0bb; font-size: .67rem; }
+.jasindo-login-screen .brand-icon { width: 38px; height: 38px; color: #d9e5f2; background: #172335; border: 1px solid #31455f; border-radius: 9px; }
+.jasindo-login-title { position: relative; z-index: 1; margin: auto 0; padding: 9vh 0 12vh; }
+.jasindo-login-title h1 { margin: 0; color: #f2f5fa; font-size: clamp(2.8rem, 6vw, 5.2rem); line-height: 1; font-weight: 760; letter-spacing: .055em; }
+.jasindo-login-title p { margin: 17px 0 0; color: #aab8ca; font-size: clamp(1rem, 1.8vw, 1.35rem); letter-spacing: .015em; }
+.jasindo-login-screen .login-footer-note { color: #71839b; font-size: .7rem; letter-spacing: .02em; }
+.jasindo-login-screen .login-form-panel { padding: 32px; background: #111b2a; }
+.jasindo-login-screen .login-form {
+  width: min(420px, 100%); padding: 30px; color: #e8edf6;
+  background: #131d2d; border: 1px solid #2a3b53; border-radius: 12px;
+  box-shadow: 0 20px 55px rgba(0,0,0,.28);
+}
+.jasindo-login-screen .login-form h2 { margin: 10px 0 6px; color: #f0f4f9; font: 700 1.55rem/1.2 Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: -.025em; }
+.jasindo-login-screen .login-form > p { margin: 0 0 23px; color: #91a2b9; font-size: .75rem; line-height: 1.55; }
+.jasindo-login-screen .login-form .eyebrow { color: #7f95b1; }
+.jasindo-login-screen .login-form .field-label { display: grid; gap: 7px; margin: 15px 0 11px; color: #b8c5d6; font-size: .74rem; font-weight: 650; }
+.jasindo-login-screen .login-form input {
+  width: 100%; min-height: 42px; padding: 10px 11px; color: #e8edf6;
+  border: 1px solid #344861; border-radius: 8px; background: #0e1827; outline: none;
+}
+.jasindo-login-screen .login-form input::placeholder { color: #667a96; }
+.jasindo-login-screen .login-form input:focus { border-color: #5486c6; box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
+.actor-code-list { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 6px; margin: 11px 0 16px; }
+.actor-code-list span { display: flex; align-items: center; gap: 7px; min-width: 0; padding: 7px 8px; color: #99a9bf; background: #101a29; border: 1px solid #253750; border-radius: 7px; font-size: .63rem; line-height: 1.3; }
+.actor-code-list b { min-width: 30px; color: #d8e5f4; font-size: .65rem; letter-spacing: .03em; }
+.jasindo-login-screen .btn.primary { background: #264e7e; border-color: #365f90; color: #f3f7fc; }
+.jasindo-login-screen .btn.primary:hover:not(:disabled) { background: #305d91; }
+.jasindo-login-screen .login-footnote { margin-top: 13px; color: #778ba5; font-size: .64rem; line-height: 1.5; }
+.jasindo-login-screen .inline-error { color: #f2b4b4; background: #351f29; border: 1px solid #693642; }
+
+/* Application frame and navigation */
+.app-shell { width: 100%; height: 100vh; min-height: 0; display: flex; overflow: hidden; background: #0d1421; color: #e8edf6; }
+.sidebar { background: #0b1421; color: #e8edf6; border-right: 1px solid #24344a; }
+.sidebar-head { border-bottom-color: #24344a; }
+.sidebar .brand-icon { background: #172335; border-color: #31445e; color: #dce6f3; }
+.sidebar .brand b { color: #f0f4fa; }
+.sidebar .brand small { color: #8699b3; }
+.sidebar .icon-button { color: #9dafc5; border-color: #2b3e58; }
+.sidebar .icon-button:hover { color: #e8edf6; background: #172335; }
+.sidebar-scroll { scrollbar-color: #344861 transparent; }
+.nav-section-label { color: #687e9a; }
+.nav-group-title { color: #8599b4; }
+.nav-item { color: #acbbcf; }
+.nav-item:hover { color: #edf3fa; background: #172335; }
+.nav-item.active { color: #f2f6fc; background: #1c2e45; box-shadow: inset 3px 0 #5b8ecb; }
+.nav-id { color: #a6c3e3; background: #1a2c43; }
+.sidebar-user-wrap { border-top-color: #24344a; }
+.sidebar-user { color: #e2eaf4; background: #121e2e; border-color: #2a3c53; }
+.sidebar-user:hover, .sidebar-user.open { background: #17263a; border-color: #3b5473; }
+.user-meta small { color: #869bb6; }
+.avatar { background: #263b55; color: #e2ebf5; }
+.account-menu { color: #e8edf6; background: #131d2d; border-color: #344861; box-shadow: 0 15px 40px rgba(0,0,0,.42); }
+.account-menu-title { color: #8297b2; }
+.account-menu button { color: #b8c6d8; }
+.account-menu button:hover, .account-menu button.current { color: #edf4fc; background: #20334c; }
+.account-menu .logout-menu { color: #e9a3a3; border-top-color: #2c4058; }
+.account-code { color: #86b5e9; font-weight: 800; }
+.app-main { min-width: 0; height: 100vh; min-height: 0; overflow: hidden; background: #0d1421; }
+.app-header { flex: 0 0 64px; height: 64px; min-height: 64px; padding: 0 22px; color: #e8edf6; background: #111b2a; border-bottom: 1px solid #263650; }
+.breadcrumb { color: #71849e; }
+.breadcrumb b { color: #d6e0ec; }
+.header-user b { color: #dfe8f3; }
+.header-user small { color: #8094b0; }
+.notification-button, .logout-icon, .icon-button { color: #9eb0c8; background: #172335; border-color: #2b405a; }
+.notification-button:hover, .logout-icon:hover, .icon-button:hover { color: #edf4fc; background: #203149; border-color: #3a5577; }
+.notification-popover { color: #dce6f2; background: #131d2d; border-color: #344861; box-shadow: 0 15px 40px rgba(0,0,0,.42); }
+.notification-popover > div { border-top-color: #263850; }
+.notification-popover > div small { color: #8094b0; }
+.notification-popover > button { color: #8db6e7; }
+.page-content { flex: 1; min-height: 0; width: 100%; max-width: none; margin: 0; padding: 23px clamp(16px, 2vw, 30px) 17px; overflow-y: auto; overflow-x: hidden; scrollbar-color: #344861 transparent; }
+.page-content-dashboard { padding: 0; display: flex; overflow: hidden; min-height: 0; }
+.page-footer { color: #6e829d; border-top: 1px solid #1f3046; }
+.mobile-brand .brand b { color: #f0f4fa; }
+.mobile-brand .brand small { color: #8699b3; }
+.mobile-menu-panel { background: #0b1421; }
+.mobile-menu-head { border-bottom-color: #24344a; }
+.mobile-menu-head .brand-icon { background: #172335; }
+.mobile-account-list { border-top-color: #24344a; }
+.mobile-account-list > b { color: #8ea0bb; }
+.mobile-account-list button { color: #dbe5f1; }
+.mobile-account-list button.current, .mobile-account-list button:hover { background: #1a2b41; }
+.mobile-account-list small { color: #8ea0bb; }
+.mobile-account-list .mobile-logout { color: #e9aaaa; border-top-color: #2a3e58; }
+.mobile-menu-trigger { color: #c0cede; background: #172335; border-color: #344861; }
+
+/* Page titles, buttons, statuses, and cards */
+.eyebrow { color: #7489a5; }
+.page-title h1 { color: #edf2f9; font: 720 clamp(1.28rem, 1.9vw, 1.7rem)/1.2 Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: -.03em; }
+.page-title p { color: #91a2b8; }
+.muted { color: #91a2b8; }
+.btn { color: #c7d3e2; background: #172335; border-color: #344861; }
+.btn:hover:not(:disabled) { color: #f1f5fa; background: #203149; border-color: #45617f; }
+.btn.primary { color: #f2f6fc; background: #244a75; border-color: #365d89; }
+.btn.primary:hover:not(:disabled) { background: #2b5789; border-color: #4775a7; }
+.btn.danger { color: #f6dede; background: #792f38; border-color: #93434b; }
+.btn.danger:hover:not(:disabled) { background: #8d3540; }
+.status { color: #b1bfd1; background: #1e2c40; }
+.status-success { color: #9dd8b3; background: #18352e; }
+.status-warning { color: #e8cb84; background: #3a311c; }
+.status-danger { color: #efa5a5; background: #3d2229; }
+.status-info { color: #9ec4ec; background: #1a3049; }
+.status-neutral { color: #a2b0c3; background: #202c3d; }
+.card { background: #131d2d; border-color: #293b53; box-shadow: 0 8px 24px rgba(0,0,0,.16); }
+.card-heading h3 { color: #e1e9f3; font: 680 .88rem Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: -.01em; }
+.card-heading p { color: #8295ae; }
+.kpi-card { color: #e8edf6; background: #131d2d; border-color: #293b53; box-shadow: none; }
+.kpi-icon { color: #9fc7f2; background: #1c314a; }
+.kpi-icon.green { color: #9dd8b3; background: #18352e; }
+.kpi-icon.red { color: #efa5a5; background: #3d2229; }
+.kpi-icon.orange { color: #e8bf78; background: #392d1b; }
+.kpi-icon.purple { color: #c5b7e9; background: #302a45; }
+.kpi-card small { color: #8b9db5; }
+.kpi-card strong { color: #edf3fa; font: 760 1.22rem Inter, ui-sans-serif, system-ui, sans-serif; }
+.kpi-card > div > span { color: #7387a2; }
+.quick-link { color: #c4d2e3; background: #101a29; border-color: #293c55; }
+.quick-link:hover { color: #edf4fc; background: #18283d; border-color: #3a5577; }
+.quick-link > span:first-child { color: #9fc7f2; background: #1b3049; }
+.quick-link b { color: #dce6f1; }
+.quick-link small { color: #8295ad; }
+.attention-item, .priority-item { border-color: #293b53; background: #111b2a; }
+.attention-item b, .priority-item b { color: #dbe5f0; }
+.attention-item small, .priority-item small { color: #8295ad; }
+.priority-number { color: #9fc7f2; background: #1b3049; }
+.simple-row { border-bottom-color: #273a52; }
+.simple-row b { color: #dce6f1; }
+.simple-row small { color: #8295ad; }
+
+/* Tables and input controls */
+.table-wrap { border-color: #2a3d55; background: #111b2a; }
+table { color: #c6d2e1; }
+th { color: #91a4bd; background: #19273a; border-bottom-color: #2b405b; }
+td { color: #bac8da; border-bottom-color: #253750; }
+td b { color: #e0e8f2; }
+.cell-sub { color: #7f93ad; }
+tbody tr:hover { background: #18263a; }
+.search-control { color: #8295ae; background: #101a29; border-color: #344861; }
+.search-control input { color: #e0e8f2; background: transparent; }
+.search-control input::placeholder { color: #6f829d; }
+.toolbar-select { color: #d2dce9; background: #101a29; border-color: #344861; }
+.toolbar-select option, select option { color: #e0e8f2; background: #172335; }
+.form-field { color: #b7c5d7; }
+.form-field small { color: #8094ae; }
+.form-field input, .form-field select, .form-field textarea,
+.form-stack > input, .decision-cell input, .decision-cell select,
+.recommendation-actions textarea, .verification-actions textarea,
+.task-actions textarea, .alert-followup textarea,
+.small-inline-input, .integration-schedule select {
+  color: #e2eaf4; background: #0f1928; border-color: #344861;
+}
+.form-field input::placeholder, .form-field textarea::placeholder,
+.small-inline-input::placeholder, .task-actions textarea::placeholder { color: #6e819c; }
+.form-field input:focus, .form-field select:focus, .form-field textarea:focus,
+.decision-cell input:focus, .decision-cell select:focus {
+  border-color: #5486c6; box-shadow: 0 0 0 3px rgba(59,130,246,.12);
+}
+.checkbox-line { color: #b1bfd1; }
+.required { color: #ef8d8d; }
+input[type="checkbox"] { accent-color: #4d82c1; }
+input[type="file"] { color: #9eb0c8; }
+input[type="file"]::file-selector-button { padding: 6px 9px; color: #dbe5f1; background: #1b2d44; border: 1px solid #344861; border-radius: 6px; margin-right: 9px; }
+.upload-box { color: #c0cede; background: #101a29; border-color: #354c68; }
+.upload-box small { color: #8396af; }
+.file-selected { color: #a8c8ec; }
+
+/* Feedback, help, and empty states */
+.note-box { color: #a6b7cb; background: #19283b; border-color: #344a63; }
+.note-box svg { color: #8db5e4; }
+.inline-warning { color: #e8cd8d; background: #362f1c; border-color: #67532b; }
+.inline-error { color: #f0b0b0; background: #39232a; border-color: #6b3943; }
+.empty-state { color: #aebed1; }
+.empty-state > span { color: #8ca6c5; background: #1b2c43; }
+.empty-state b { color: #dce6f1; }
+.empty-state p { color: #8296b0; }
+.process-list li { color: #d5dfeb; }
+.process-list li small { color: #8295ad; }
+.process-list li:before { color: #9fc7f2; background: #1b3049; }
+.card-footer-actions { border-top-color: #2a3d55; }
+
+/* Modals, notifications, and overlays */
+.modal-backdrop { background: rgba(3,8,16,.74); backdrop-filter: blur(3px); }
+.modal { color: #dce6f1; background: #131d2d; border: 1px solid #354a64; box-shadow: 0 25px 80px rgba(0,0,0,.5); }
+.modal-header { border-bottom-color: #2b3e57; }
+.modal-header h2 { color: #edf3fa; font: 700 1.02rem Inter, ui-sans-serif, system-ui, sans-serif; }
+.modal-header p { color: #8295ad; }
+.toast { color: #e3ebf5; background: #152235; border-color: #354a64; box-shadow: 0 14px 45px rgba(0,0,0,.42); }
+.toast b { color: #edf3fa; }
+.toast small { color: #91a4bc; }
+.toast > button { color: #91a4bc; }
+.toast-success .toast-symbol { color: #83c89f; }
+.toast-warning .toast-symbol { color: #e8bd70; }
+.toast-error .toast-symbol { color: #ef9292; }
+
+/* Workflow page components */
+.bar-row > span, .bar-row > b { color: #b8c7d8; }
+.progress-track, .bar-row > i { background: #26364c; }
+.progress-track span, .bar-row > i em { background: #527eae; }
+.detail-pair { border-bottom-color: #293c55; color: #8fa2ba; }
+.detail-pair b { color: #dce6f1; }
+.subnav-tabs, .filter-tabs { border-bottom-color: #293c55; }
+.subnav-tabs button, .filter-tabs button { color: #879bb5; }
+.subnav-tabs button.active, .filter-tabs button.active { color: #dce8f5; border-color: #5d8fc6; }
+.filter-tabs button:hover, .subnav-tabs button:hover { color: #edf4fc; }
+.score-feature, .compare-card, .task-card, .recommendation-card, .verification-card,
+.self-survey-row, .alert-item, .integration-card, .gateway-card {
+  color: #dce6f1; background: #111b2a; border-color: #2c4059;
+}
+.score-feature h3, .task-card h3, .recommendation-card h3, .verification-card h3 { color: #e8eef6; }
+.score-feature p, .score-feature small, .task-card p, .recommendation-card p { color: #8195af; }
+.score-breakdown > div, .hazard-score-row, .comparison-grid > div { border-color: #293c55; }
+.score-breakdown span, .hazard-score-row small, .comparison-grid small { color: #879bb5; }
+.score-breakdown b, .hazard-score-row > b, .comparison-grid b { color: #dce6f1; }
+.score-circle { border-color: #344a64; background: #1b2d44; }
+.score-circle strong { color: #e9f0f8; }
+.monitor-asset { border-color: #2b3e57; background: #111b2a; }
+.monitor-asset b { color: #e3ebf5; }
+.monitor-asset small { color: #8295ad; }
+.telemetry-grid > div, .performance-grid > div, .device-summary > div { background: #111b2a; border-color: #293c55; }
+.telemetry-grid small, .performance-grid small, .device-summary small { color: #8195af; }
+.telemetry-grid b, .performance-grid strong, .device-summary b { color: #e4ecf5; }
+.sensor-meta-line { color: #93a5bd; }
+.alert-item { border-color: #2d405a; }
+.alert-body p, .alert-body small { color: #8ea1ba; }
+.alert-title-row b { color: #e4ecf5; }
+.alert-followup { color: #adbed2; background: #1a2a40; }
+.alert-actions input { color: #dce6f1; background: #0f1928; border-color: #344861; }
+.score-breakdown i, .exposure-list i { background: #293b52; }
+.score-breakdown em, .exposure-list em { background: #557faa; }
+.inspector-name b, .compare-card b, .priority-actions b, .recommended-user b { color: #e2eaf4; }
+.inspector-score strong, .compare-score strong { color: #8fb8e5; }
+.map-inspector .card { background: #131d2d; }
+.map-attribution { color: #97a8bd; background: rgba(10,20,34,.88); }
+.map-legend-row { color: #94a6bd; }
+.layer-list label { color: #bac8da; border-bottom-color: #2a3d55; }
+.task-meta span, .task-id { color: #8296b0; }
+.task-actions textarea, .task-submit textarea, .review-actions textarea { color: #e0e8f2; background: #0f1928; border-color: #344861; }
+.evidence-pill { color: #a9c8eb; background: #1a3049; }
+.recommended-user { background: #17263a; border-color: #2c4059; }
+.recommended-user small { color: #8ea1b9; }
+.recommendation-actions textarea, .verification-actions textarea { color: #e0e8f2; }
+.survey-answer-preview span { color: #9cafc4; background: #1b2b40; }
+.survey-answer-preview b { color: #dce6f1; }
+.settings-list > div, .priority-actions > div { border-bottom-color: #2a3d55; }
+.settings-list > div > span { color: #b9c8da; }
+.integration-card h3 { color: #e2eaf4; }
+.integration-card p, .integration-card .detail-pair span { color: #8599b3; }
+.integration-card .detail-pair b { color: #dce6f1; }
+.integration-schedule { background: #17263a; border-color: #2d415c; }
+.integration-schedule label { color: #98abc2; }
+.integration-flow > div { color: #dce6f1; background: #17263a; border-color: #2d415c; }
+.integration-flow small { color: #8296af; }
+
+/* Dashboard/map remains the legacy layout and its original dark styling. */
+.page-content-dashboard { background: #0d1421; }
+.legacy-dashboard { flex: 1; width: 100%; height: 100%; min-height: 0; }
+.legacy-dashboard .legacy-dashboard-bar { border-top: 0; }
+.legacy-dashboard .legacy-dashboard-heading strong { letter-spacing: .13em; }
+.legacy-dashboard .legacy-live-info { color: #8295af; }
+.legacy-dashboard .legacy-source-tabs button { color: #91a3b9; }
+.legacy-dashboard .legacy-source-tabs button.active { color: #e8edf6; }
+.legacy-dashboard .map-toolbar .search-box input { color: #dce6f1; }
+.legacy-dashboard .panel-heading h3 { color: #e4edf7; }
+.legacy-dashboard .system-data-summary strong { color: #e6edf6; }
+.legacy-dashboard .primary-sync-btn { color: #e1ebf7; }
+
+/* Keep screen density readable and navigation usable on smaller windows. */
+@media (max-width: 900px) {
+  .jasindo-login-screen { grid-template-columns: 1fr; height: auto; min-height: 100vh; }
+  .jasindo-login-screen .login-brand-panel { min-height: 220px; padding: 23px 24px; border-right: 0; border-bottom: 1px solid #263650; }
+  .jasindo-login-title { margin: 34px 0 25px; padding: 0; }
+  .jasindo-login-title h1 { font-size: 2.6rem; }
+  .jasindo-login-title p { margin-top: 8px; }
+  .jasindo-login-screen .login-footer-note { display: none; }
+  .jasindo-login-screen .login-form-panel { min-height: calc(100vh - 220px); padding: 22px; }
+}
+@media (max-width: 700px) {
+  .app-header { padding: 0 12px; }
+  .breadcrumb { display: none; }
+  .header-actions { gap: 7px; }
+  .header-user > span:not(.avatar) { display: none; }
+  .page-content { padding: 17px 12px; }
+  .page-content-dashboard { padding: 0; }
+  .actor-code-list { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .jasindo-login-screen .login-form-panel { padding: 16px; }
+  .jasindo-login-screen .login-form { padding: 22px; }
+}
+@media (max-width: 420px) {
+  .actor-code-list span { font-size: .59rem; }
+  .actor-code-list b { min-width: 27px; }
+  .header-actions .status { display: none; }
+}
+
+@media print {
+  body { background: #fff !important; color: #111 !important; overflow: visible !important; }
+  .sidebar, .app-header, .page-footer, .toast, .mobile-menu-backdrop { display: none !important; }
+  .app-shell, .app-main, .page-content { display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; background: #fff !important; color: #111 !important; }
+}
+
+/* --------------------------------------------------------------------------
+   JASINDO readability pass
+   Focus: stronger contrast on dark surfaces, consistent controls, and focus states.
+   This file replaces src/jasindo-theme.css; no JSX or dependency changes needed.
+   -------------------------------------------------------------------------- */
+
+/* Map layer toggles: the previous pale text sat on white chips. */
+.app-shell .layer-list label {
+  min-height: 38px;
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  color: #dbe5f1;
+  background: #17263a;
+  border: 1px solid #344a64;
+  border-radius: 8px;
+  font-size: .69rem;
+  line-height: 1.35;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.app-shell .layer-list label:hover {
+  color: #f1f5fa;
+  background: #1d3049;
+  border-color: #496487;
+}
+.app-shell .layer-list label > span {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: inherit;
+}
+.app-shell .layer-list label svg {
+  flex: none;
+  color: #a9c4e5;
+}
+.app-shell .layer-list label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin: 0;
+  accent-color: #78a7df;
+  cursor: pointer;
+}
+.app-shell .layer-list label:focus-within {
+  outline: 2px solid #78a7df;
+  outline-offset: 2px;
+}
+
+/* Exposure list: clear province labels, values, and a visible distribution bar. */
+.app-shell .exposure-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 14px;
+  row-gap: 7px;
+  padding: 10px 0;
+  border-bottom: 1px solid #2b3e57;
+  font-size: .72rem;
+}
+.app-shell .exposure-list > div span {
+  min-width: 0;
+  color: #aebed2;
+  line-height: 1.4;
+}
+.app-shell .exposure-list > div b {
+  color: #e4edf7;
+  font-size: .73rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.app-shell .exposure-list > div i {
+  grid-column: 1 / -1;
+  display: block;
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  background: #293b52;
+  border-radius: 999px;
+}
+.app-shell .exposure-list > div i em {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  background: #668fbd;
+  border-radius: inherit;
+}
+
+/* Tabs: avoid light text on the original white / pale-blue tab backgrounds. */
+.app-shell .subnav-tabs button,
+.app-shell .filter-tabs button {
+  color: #b7c6d9;
+  background: #172335;
+  border: 1px solid #344861;
+  border-radius: 7px;
+  transition: color .15s ease, background .15s ease, border-color .15s ease;
+}
+.app-shell .subnav-tabs button:hover,
+.app-shell .filter-tabs button:hover {
+  color: #f0f4fa;
+  background: #203149;
+  border-color: #49617f;
+}
+.app-shell .subnav-tabs button.active,
+.app-shell .filter-tabs button.active {
+  color: #f1f5fb;
+  background: #263f5f;
+  border-color: #5d87b7;
+}
+
+/* Cards that previously inherited dark text from the light theme. */
+.app-shell .comparison-grid > div {
+  color: #dce6f1;
+  background: #17263a;
+  border-color: #30445f;
+}
+.app-shell .comparison-grid > div small {
+  color: #a2b2c8;
+}
+.app-shell .comparison-grid > div b {
+  color: #e7eef7;
+}
+.app-shell .device-summary {
+  color: #dce6f1;
+  background: #111b2a;
+  border-color: #2c4059;
+}
+.app-shell .device-summary b,
+.app-shell .gateway-card b {
+  color: #e4ecf5;
+}
+.app-shell .device-summary small,
+.app-shell .gateway-card small {
+  color: #9aacc3;
+}
+.app-shell .gateway-card {
+  color: #dce6f1;
+  background: #111b2a;
+  border-color: #2c4059;
+}
+.app-shell .upload-box b {
+  color: #e0e9f4;
+}
+.app-shell .integration-flow > div b {
+  color: #e4edf7;
+}
+.app-shell .user-profile-line b {
+  color: #e5edf7;
+}
+.app-shell .user-profile-line small {
+  color: #9aacc3;
+}
+.app-shell .history-line {
+  color: #a1b2c8;
+}
+.app-shell .compare-selects > span {
+  color: #a7b8ce;
+}
+.app-shell .compare-score {
+  color: #a6b7cc;
+}
+.app-shell .priority-actions small,
+.app-shell .recommendation-main > small {
+  color: #9aacc2;
+}
+.app-shell .hazard-score-row > span {
+  color: #a6b7cc;
+}
+
+/* Scenario result panel now follows the dark page theme. */
+.app-shell .scenario-output {
+  color: #dce6f1;
+  background: #111b2a;
+  border-color: #2c4059;
+}
+.app-shell .scenario-summary {
+  color: #c6d3e2;
+}
+.app-shell .scenario-summary b {
+  color: #edf3fa;
+}
+.app-shell .scenario-summary small {
+  color: #a0b1c7;
+}
+
+/* Geocoding result panel: dark surface with matching readable labels. */
+.app-shell .geocode-status {
+  color: #dce6f1;
+  background: #17263a;
+  border-color: #30445f;
+}
+.app-shell .geocode-status b {
+  color: #e4edf7;
+}
+.app-shell .geocode-status small {
+  color: #a0b1c7;
+}
+
+/* Self-survey choice is a selectable control; make its state obvious. */
+.app-shell .choice-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 12px;
+  color: #d6e0ec;
+  background: #17263a;
+  border: 1px solid #344861;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.app-shell .choice-row > span {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+.app-shell .choice-row b {
+  color: #e7eef7;
+  font-size: .72rem;
+}
+.app-shell .choice-row small {
+  color: #a0b1c7;
+  font-size: .64rem;
+  line-height: 1.45;
+}
+.app-shell .choice-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin: 2px 0 0;
+  accent-color: #78a7df;
+}
+.app-shell .choice-row.disabled {
+  opacity: .58;
+  cursor: not-allowed;
+}
+
+/* Keyboard focus visibility across form controls and action buttons. */
+.app-shell button:focus-visible,
+.app-shell input:focus-visible,
+.app-shell select:focus-visible,
+.app-shell textarea:focus-visible {
+  outline: 2px solid #78a7df;
+  outline-offset: 2px;
+}
+
+/* Keep the map's floating controls legible over the light basemap. */
+.app-shell .map-controls,
+.app-shell .map-controls button,
+.app-shell .map-controls .map-reset-view {
+  color: #dce6f1;
+  background: #17263a;
+  border-color: #344861;
+}
+.app-shell .map-controls .map-zoom-controls span {
+  color: #dce6f1;
+}
+.app-shell .map-controls button:hover,
+.app-shell .map-controls .map-reset-view:hover {
+  color: #ffffff;
+  background: #263f5f;
+  border-color: #5d87b7;
+}
+
+@media (max-width: 700px) {
+  .app-shell .layer-list label {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+  .app-shell .exposure-list > div {
+    column-gap: 10px;
+  }
+}

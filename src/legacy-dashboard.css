@@ -1,0 +1,1287 @@
+.legacy-dashboard .side-panel {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 320px;
+  min-width: 320px;
+  background: #111a29;
+  border-color: #24344a;
+  z-index: 20;
+  transition: width .25s ease, min-width .25s ease;
+}
+.legacy-dashboard .side-panel.left { left: 0; border-right: 1px solid #24344a; }
+.legacy-dashboard .side-panel.right { right: 0; border-left: 1px solid #24344a; }
+.legacy-dashboard .side-panel.collapsed { width: 0; min-width: 0; border-color: transparent; }
+.legacy-dashboard .collapse-tab { position: absolute; top: 18px; width: 26px; height: 44px; border: 1px solid #2b3e58; background: #172235; display: grid; place-items: center; cursor: pointer; z-index: 25; }
+.legacy-dashboard .collapse-tab.right { right: -26px; border-radius: 0 8px 8px 0; }
+.legacy-dashboard .collapse-tab.left { left: -26px; border-radius: 8px 0 0 8px; }
+.legacy-dashboard .panel-heading { height: 74px; padding: 17px 18px 12px; border-bottom: 1px solid #23344b; display: flex; align-items: center; justify-content: space-between; }
+.legacy-dashboard .panel-heading h3 { margin: 4px 0 0; font-size: .95rem; display: flex; gap: 8px; align-items: center; letter-spacing: -.01em; }
+.legacy-dashboard .eyebrow { font-size: .58rem; letter-spacing: .18em; color: #71839d; font-weight: 800; }
+.legacy-dashboard .demo-chip, .legacy-dashboard .unit-pill { border-radius: 999px; background: #1f2d42; border: 1px solid #334861; color: #9eb3cb; font-size: .58rem; letter-spacing: .12em; padding: 4px 7px; font-weight: 800; }
+.legacy-dashboard .icon-btn { width: 34px; }
+.legacy-dashboard .sim-form { padding: 17px 17px 8px; display: grid; gap: 17px; }
+.legacy-dashboard .sim-form > label { display: grid; gap: 8px; font-size: .72rem; color: #96a8bf; font-weight: 650; }
+.legacy-dashboard .select-wrap { height: 42px; border: 1px solid #2c405b; border-radius: 9px; background: #172235; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; padding: 0 10px; color: #7f94b1; }
+.legacy-dashboard .select-wrap select { color: #dbe5f2; background: transparent; border: 0; outline: none; appearance: none; width: 100%; }
+.legacy-dashboard .select-wrap option { background: #172235; }
+.legacy-dashboard .hazard-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.legacy-dashboard .hazard-tabs button { min-width: 0; border: 1px solid #2a3e58; background: #162235; color: #8396af; border-radius: 9px; padding: 9px 3px; display: grid; justify-items: center; gap: 5px; cursor: pointer; font-size: .64rem; }
+.legacy-dashboard .hazard-tabs button.active { border-color: #557baa; color: #d8e6f6; background: #1d2f46; }
+.legacy-dashboard .range-row { display: grid; grid-template-columns: 1fr 44px; gap: 10px; align-items: center; }
+.legacy-dashboard .range-row input { accent-color: #d84a4a; }
+.legacy-dashboard .range-row output { height: 38px; border-radius: 8px; border: 1px solid #344a65; display: grid; place-items: center; color: white; background: #0e1725; font-weight: 800; font-variant-numeric: tabular-nums; }
+.legacy-dashboard .sim-form small { color: #657a95; line-height: 1.5; font-weight: 450; }
+.legacy-dashboard .danger-btn { border: 0; border-radius: 9px; min-height: 42px; background: #a53535; color: #fff; display: flex; justify-content: center; align-items: center; gap: 8px; cursor: pointer; font-weight: 750; font-size: .78rem; }
+.legacy-dashboard .danger-btn:hover { background: #b43d3d; }
+.legacy-dashboard .active-event-card { margin: 9px 17px; padding: 13px; border-radius: 10px; background: #2a1a1c; border: 1px solid #5a2b30; }
+.legacy-dashboard .active-event-card > div { display: flex; align-items: center; gap: 8px; font-size: .78rem; }
+.legacy-dashboard .event-pulse { width: 8px; height: 8px; border-radius: 50%; background: #ef4444; animation: pulseDot 1.2s infinite; }
+.legacy-dashboard .active-event-card p { margin: 7px 0 10px; color: #d6a8a8; font-size: .69rem; }
+.legacy-dashboard .active-event-card button { border: 0; background: transparent; color: #f0c0c0; padding: 0; display: flex; gap: 6px; align-items: center; font-size: .68rem; cursor: pointer; }
+.legacy-dashboard .panel-note { margin: 12px 17px; padding: 11px; border-top: 1px solid #26364b; display: flex; gap: 9px; color: #657b96; font-size: .65rem; line-height: 1.5; }
+.legacy-dashboard .panel-note p { margin: 0; }
+.legacy-dashboard .filter-summary { margin: 14px 16px 8px; width: calc(100% - 32px); border: 1px solid #2d4058; border-radius: 9px; background: #172235; color: #aebed0; height: 38px; padding: 0 10px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-size: .72rem; }
+.legacy-dashboard .filter-summary span { display: flex; align-items: center; gap: 7px; }
+.legacy-dashboard .area-picker { position: absolute; top: 124px; left: 16px; right: 16px; max-height: 380px; background: #172235; border: 1px solid #344962; border-radius: 12px; z-index: 70; box-shadow: 0 20px 50px rgba(0,0,0,.35); overflow: hidden; }
+.legacy-dashboard .picker-head { display: flex; align-items: center; justify-content: space-between; padding: 11px 12px; border-bottom: 1px solid #2c3f58; font-size: .72rem; font-weight: 750; }
+.legacy-dashboard .picker-head button { border: 0; background: transparent; cursor: pointer; }
+.legacy-dashboard .picker-list { max-height: 320px; overflow: auto; padding: 7px; }
+.legacy-dashboard .picker-list label { display: flex; gap: 8px; align-items: center; padding: 7px; border-radius: 7px; color: #afbdce; font-size: .7rem; cursor: pointer; }
+.legacy-dashboard .picker-list label:hover { background: #1d2b40; }
+.legacy-dashboard .picker-list input { accent-color: #3b82f6; }
+.legacy-dashboard .dashboard-scroll { height: calc(100vh - 68px - 133px); overflow: auto; padding: 7px 15px 24px; scrollbar-width: thin; }
+.legacy-dashboard .region-card { border: 1px solid #273950; border-radius: 11px; padding: 12px; background: #141f30; margin-bottom: 10px; }
+.legacy-dashboard .region-card-head { display: flex; justify-content: space-between; align-items: start; gap: 8px; }
+.legacy-dashboard .region-card-head > div { display: grid; gap: 2px; }
+.legacy-dashboard .region-card-head strong { font-size: .78rem; }
+.legacy-dashboard .region-card-head span { color: #71849e; font-size: .62rem; }
+.legacy-dashboard .risk-pill { padding: 4px 7px; border-radius: 999px; font-size: .57rem !important; font-weight: 800; }
+.legacy-dashboard .risk-pill.safe { color: #87bdfb; background: #172c48; }
+.legacy-dashboard .risk-pill.watch { color: #e5c86a; background: #332d18; }
+.legacy-dashboard .risk-pill.danger { color: #f3a6a6; background: #3d2024; }
+.legacy-dashboard .risk-pill.offline { color: #ecd17a; background: #3e3416; }
+.legacy-dashboard .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-top: 11px; }
+.legacy-dashboard .metric { min-width: 0; border-radius: 8px; padding: 8px; border: 1px solid #293a50; background: #101a28; display: grid; grid-template-columns: 1fr auto; gap: 4px; }
+.legacy-dashboard .metric > div { grid-column: 1 / -1; display: flex; align-items: center; gap: 4px; color: #71849f; font-size: .56rem; }
+.legacy-dashboard .metric strong { font-size: .86rem; font-variant-numeric: tabular-nums; }
+.legacy-dashboard .metric small { align-self: end; color: #6c7d94; font-size: .5rem; }
+.legacy-dashboard .metric.watch { border-color: #594f2b; }
+.legacy-dashboard .metric.danger { border-color: #5f3035; }
+.legacy-dashboard .metric.offline { border-color: #635221; background: #17140b; }
+.legacy-dashboard .region-subnote { margin-top: 10px; color: #71849e; font-size: .62rem; line-height: 1.45; }
+.legacy-dashboard .map-stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0b1422;
+}
+.legacy-dashboard .map-toolbar { position: absolute; top: 13px; left: 16px; right: 16px; z-index: 12; display: flex; gap: 8px; justify-content: flex-end; pointer-events: none; }
+.legacy-dashboard .map-toolbar > * { pointer-events: auto; }
+.legacy-dashboard .map-toolbar button { height: 37px; border: 1px solid #2d4059; background: rgba(19,31,48,.94); border-radius: 8px; padding: 0 10px; display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: .7rem; box-shadow: 0 8px 24px rgba(0,0,0,.2); }
+.legacy-dashboard .search-box { height: 37px; width: min(300px, 38vw); border: 1px solid #2d4059; background: rgba(19,31,48,.94); border-radius: 8px; display: flex; align-items: center; gap: 8px; padding: 0 10px; color: #7588a3; }
+.legacy-dashboard .search-box input { width: 100%; border: 0; background: transparent; outline: none; color: #d8e0ea; font-size: .7rem; }
+.legacy-dashboard .map-viewport { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(circle at 42% 44%, #142438 0, #0b1524 46%, #08111d 100%); }
+.legacy-dashboard .map-grid-lines { position: absolute; inset: 0; opacity: .17; background-image: linear-gradient(rgba(122,157,196,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(122,157,196,.12) 1px, transparent 1px); background-size: 80px 80px; }
+.legacy-dashboard .map-inner { position: absolute; inset: 2% 1% 3%; transition: transform .45s cubic-bezier(.2,.8,.2,1); }
+.legacy-dashboard .indonesia-base-map {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  filter: grayscale(1) brightness(.78) contrast(1.15);
+  opacity: .92;
+  pointer-events: none;
+  user-select: none;
+}
+.legacy-dashboard .province-halo { position: absolute; transform: translate(-50%, -50%); border-radius: 999px; pointer-events: none; z-index: 3; }
+.legacy-dashboard .province-halo.danger { width: 88px; height: 54px; background: radial-gradient(circle, rgba(239,68,68,.40) 0, rgba(239,68,68,.15) 52%, rgba(239,68,68,0) 72%); animation: impactPulse 1.15s infinite alternate; }
+.legacy-dashboard .province-halo.watch { width: 76px; height: 46px; background: radial-gradient(circle, rgba(249,115,22,.36) 0, rgba(249,115,22,.12) 54%, rgba(249,115,22,0) 74%); animation: watchGlow 1.35s infinite alternate; }
+
+.legacy-dashboard .iot-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.5);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  z-index: 7;
+  transition: transform .22s ease, box-shadow .22s ease;
+  color: white;
+}
+.legacy-dashboard .iot-marker:hover, .legacy-dashboard .iot-marker.focused { transform: translate(-50%, -50%) scale(1.22); z-index: 10; }
+.legacy-dashboard .iot-marker.safe { background: #2f6fcf; box-shadow: 0 5px 16px rgba(28,73,139,.42); }
+.legacy-dashboard .iot-marker.offline { background: #c99818; box-shadow: 0 5px 16px rgba(160,116,0,.35); }
+.legacy-dashboard .iot-marker.watch { background: #f47f2b; box-shadow: 0 0 0 4px rgba(249,115,22,.12), 0 7px 22px rgba(249,115,22,.28); }
+.legacy-dashboard .iot-marker.danger { background: #d94545; box-shadow: 0 0 0 4px rgba(217,69,69,.14), 0 7px 22px rgba(217,69,69,.38); animation: dangerMarker 1s infinite alternate; }
+
+
+.legacy-dashboard .iot-marker:hover,
+.legacy-dashboard .iot-marker.focused {
+  transform: translate(-50%, -50%) scale(1.08);
+  z-index: 10;
+}
+.legacy-dashboard .marker-ripple { position: absolute; inset: -6px; border-radius: 50%; border: 1px solid currentColor; opacity: .18; }
+.legacy-dashboard .iot-marker.danger .marker-ripple { animation: ringPulse 1.15s infinite; }
+.legacy-dashboard .iot-marker.watch .marker-ripple { animation: ringPulse 1.45s infinite; }
+.legacy-dashboard .impact-layer { position: absolute; width: 0; height: 0; z-index: 4; }
+.legacy-dashboard .impact-ring { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+.legacy-dashboard .impact-ring.primary { width: 155px; height: 155px; background: rgba(220,38,38,.22); border: 2px solid rgba(239,68,68,.72); animation: impactPulse 1.15s infinite alternate; }
+.legacy-dashboard .impact-ring.secondary { width: 265px; height: 215px; background: rgba(249,115,22,.09); border: 2px dashed rgba(249,115,22,.62); animation: slowSpin 18s linear infinite; }
+.legacy-dashboard .impact-ring.tertiary { width: 380px; height: 300px; background: rgba(234,179,8,.04); border: 1px dashed rgba(234,179,8,.34); }
+.legacy-dashboard .event-bubble { position: absolute; left: 54px; top: -120px; width: 220px; background: #f7f3eb; color: #1f2937; border-radius: 12px; padding: 12px 13px; box-shadow: 0 12px 34px rgba(0,0,0,.32); display: grid; gap: 4px; }
+.legacy-dashboard .event-bubble:after { content: ""; position: absolute; left: 26px; bottom: -9px; border: 10px solid transparent; border-top-color: #f7f3eb; border-bottom: 0; }
+.legacy-dashboard .event-bubble strong { color: #b42318; font-size: .72rem; }
+.legacy-dashboard .event-bubble span { font-weight: 800; font-size: .84rem; }
+.legacy-dashboard .event-bubble small { color: #667085; font-size: .55rem; line-height: 1.35; }
+.legacy-dashboard .map-legend { position: absolute; bottom: 24px; left: 20px; background: rgba(13,24,39,.92); border: 1px solid #2a3d55; border-radius: 10px; padding: 9px 11px; display: flex; gap: 14px; z-index: 10; font-size: .62rem; color: #91a3b9; }
+.legacy-dashboard .map-legend span { display: flex; gap: 6px; align-items: center; }
+.legacy-dashboard .legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.legacy-dashboard .legend-dot.safe { background: #3b82f6; }
+.legacy-dashboard .legend-dot.watch { background: #f97316; }
+.legacy-dashboard .legend-dot.offline { background: #eab308; }
+.legacy-dashboard .legend-dot.danger { background: #ef4444; }
+.legacy-dashboard .zone-swatch { width: 12px; height: 8px; display: inline-block; border-radius: 3px; }
+.legacy-dashboard .zone-swatch.orange { background: rgba(249,115,22,.45); border: 1px solid #f97316; }
+.legacy-dashboard .bottom-status { position: absolute; bottom: 0; right: 0; left: 0; height: 30px; border-top: 1px solid rgba(44,62,85,.75); background: rgba(9,17,29,.75); z-index: 9; display: flex; justify-content: flex-end; gap: 18px; align-items: center; padding: 0 15px; font-size: .58rem; color: #71839a; }
+.legacy-dashboard .bottom-status span { display: flex; gap: 5px; align-items: center; }
+.legacy-dashboard .sensor-overlay { position: fixed; inset: 68px 0 0; z-index: 80; display: grid; place-items: center; background: rgba(5,10,18,.46); backdrop-filter: blur(5px); animation: fadeIn .25s ease; }
+.legacy-dashboard .sensor-modal { width: min(760px, calc(100vw - 40px)); background: #121e2f; border: 1px solid #334863; border-radius: 18px; box-shadow: 0 28px 80px rgba(0,0,0,.48); overflow: hidden; }
+.legacy-dashboard .sensor-modal-head { display: flex; justify-content: space-between; align-items: center; padding: 15px 18px; border-bottom: 1px solid #26384f; }
+.legacy-dashboard .back-btn { border: 0; background: transparent; display: flex; align-items: center; gap: 7px; color: #a8b7c9; cursor: pointer; font-size: .72rem; }
+.legacy-dashboard .connection-badge { display: flex; align-items: center; gap: 6px; padding: 6px 9px; border-radius: 999px; font-size: .65rem; font-weight: 750; }
+.legacy-dashboard .connection-badge.online { background: #15332a; color: #7bd4a7; }
+.legacy-dashboard .connection-badge.offline { background: #382f14; color: #e6ca70; }
+.legacy-dashboard .sensor-title { padding: 20px 24px 8px; display: flex; align-items: center; justify-content: space-between; }
+.legacy-dashboard .sensor-title h2 { margin: 3px 0 3px; font-size: 1.45rem; }
+.legacy-dashboard .sensor-title p { margin: 0; color: #778ba6; font-size: .7rem; }
+.legacy-dashboard .mini-signal { border: 1px solid #2f455f; border-radius: 11px; padding: 8px 10px; display: grid; grid-template-columns: auto auto; align-items: center; gap: 2px 8px; color: #86aef0; }
+.legacy-dashboard .mini-signal svg { grid-row: 1 / span 2; }
+.legacy-dashboard .mini-signal strong { font-size: 1rem; }
+.legacy-dashboard .mini-signal span { color: #7186a2; font-size: .55rem; }
+.legacy-dashboard .connection-scene { margin: 18px 24px 12px; padding: 28px 18px; border: 1px solid #293c55; border-radius: 14px; background: #0d1726; display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 18px; align-items: center; }
+.legacy-dashboard .endpoint { display: grid; justify-items: center; gap: 5px; text-align: center; }
+.legacy-dashboard .endpoint-icon { width: 66px; height: 66px; display: grid; place-items: center; border-radius: 18px; background: #17283c; border: 1px solid #314a67; color: #8eb7ec; transition: .2s; }
+.legacy-dashboard .endpoint.active .endpoint-icon { box-shadow: 0 0 0 6px rgba(59,130,246,.08); border-color: #4a72a2; }
+.legacy-dashboard .endpoint strong { font-size: .74rem; }
+.legacy-dashboard .endpoint span { color: #6f829b; font-size: .61rem; }
+.legacy-dashboard .signal-path { display: grid; justify-items: center; gap: 9px; position: relative; }
+.legacy-dashboard .path-line { width: 100%; height: 2px; background: #2f4054; position: absolute; top: 29px; overflow: hidden; }
+.legacy-dashboard .path-line i { display: none; position: absolute; width: 10px; height: 3px; border-radius: 99px; background: #d9eaff; box-shadow: 0 0 10px rgba(126,178,241,.75); left: -15px; }
+.legacy-dashboard .signal-path.transmitting .path-line i { display: block; animation: electric 1.1s linear infinite; }
+.legacy-dashboard .signal-path.transmitting .path-line i:nth-child(2) { animation-delay: .32s; }
+.legacy-dashboard .signal-path.transmitting .path-line i:nth-child(3) { animation-delay: .64s; }
+.legacy-dashboard .power-switch { position: relative; z-index: 2; width: 84px; height: 58px; border: 1px solid #3c516b; background: #172538; border-radius: 14px; display: grid; place-items: center; align-content: center; gap: 2px; cursor: pointer; transition: .2s; }
+.legacy-dashboard .power-switch span { font-size: .56rem; }
+.legacy-dashboard .power-switch.on { color: #84aef0; border-color: #446b9e; }
+.legacy-dashboard .power-switch.off { color: #e2c45c; border-color: #665828; }
+.legacy-dashboard .power-switch:disabled { opacity: .75; cursor: wait; }
+.legacy-dashboard .signal-path small { color: #627892; font-size: .55rem; }
+.legacy-dashboard .telemetry-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; padding: 6px 24px 24px; }
+.legacy-dashboard .telemetry-row .metric { padding: 11px; }
+.legacy-dashboard .toast { position: fixed; z-index: 100; right: 20px; bottom: 20px; width: min(390px, calc(100vw - 40px)); border-radius: 12px; padding: 13px; background: #f8fafc; color: #172033; box-shadow: 0 18px 55px rgba(0,0,0,.32); display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; animation: toastIn .3s ease; }
+.legacy-dashboard .toast-icon { width: 31px; height: 31px; display: grid; place-items: center; border-radius: 9px; background: #eef4fb; color: #245ca4; }
+.legacy-dashboard .toast.success .toast-icon { background: #e9f7ef; color: #15803d; }
+.legacy-dashboard .toast.danger .toast-icon { background: #fdecec; color: #c24141; }
+.legacy-dashboard .toast.warning .toast-icon { background: #fcf5dd; color: #a47d13; }
+.legacy-dashboard .toast > div:nth-child(2) { display: grid; gap: 3px; }
+.legacy-dashboard .toast strong { font-size: .76rem; }
+.legacy-dashboard .toast span { color: #667085; font-size: .66rem; line-height: 1.45; }
+.legacy-dashboard .toast button { border: 0; background: transparent; color: #667085; cursor: pointer; }
+@keyframes pulseDot { 50% { box-shadow: 0 0 0 6px rgba(239,68,68,0); } }
+@keyframes dangerMarker { to { box-shadow: 0 0 0 8px rgba(239,68,68,.07), 0 7px 22px rgba(217,69,69,.5); } }
+@keyframes ringPulse { from { transform: scale(.8); opacity: .45; } to { transform: scale(1.8); opacity: 0; } }
+@keyframes watchGlow { from { opacity: .58; transform: translate(-50%, -50%) scale(.95); } to { opacity: .92; transform: translate(-50%, -50%) scale(1.06); } }
+@keyframes impactPulse { from { opacity: .68; transform: translate(-50%, -50%) scale(.95); } to { opacity: 1; transform: translate(-50%, -50%) scale(1.04); } }
+@keyframes slowSpin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+@keyframes electric { to { left: calc(100% + 15px); } }
+@keyframes fadeIn { from { opacity: 0; } }
+@keyframes toastIn { from { opacity: 0; transform: translateY(10px); } }
+@media (max-width: 1180px) {
+  .legacy-dashboard .side-panel { width: 280px; min-width: 280px; }
+  .legacy-dashboard .topbar nav { display: none; }
+  .legacy-dashboard .topbar { grid-template-columns: 1fr auto; }
+  .legacy-dashboard .visual-copy h1 { font-size: 4rem; }
+}
+@media (max-width: 900px) {
+  .legacy-dashboard body { overflow: auto; }
+  .legacy-dashboard .login-shell { grid-template-columns: 1fr; }
+  .legacy-dashboard .login-visual { min-height: 45vh; }
+  .legacy-dashboard .visual-copy { padding-top: 7vh; }
+  .legacy-dashboard .visual-copy h1 { margin-top: 8vh; font-size: 3.3rem; }
+  .legacy-dashboard .login-panel { min-height: 55vh; }
+  .legacy-dashboard .topbar { padding: 0 10px; gap: 10px; }
+  .legacy-dashboard .brand-row { min-width: 0; }
+  .legacy-dashboard .brand-row > div:last-child span, .legacy-dashboard .live-status, .legacy-dashboard .logout-btn span { display: none; }
+  .legacy-dashboard .logout-btn { width: 36px; padding: 0; }
+  .legacy-dashboard .side-panel { position: absolute; top: 0; bottom: 0; width: min(330px, 84vw); min-width: min(330px, 84vw); box-shadow: 16px 0 45px rgba(0,0,0,.3); }
+  .legacy-dashboard .side-panel.right { right: 0; box-shadow: -16px 0 45px rgba(0,0,0,.3); }
+  .legacy-dashboard .side-panel.left { left: 0; }
+  .legacy-dashboard .side-panel.collapsed { width: 0; min-width: 0; }
+  .legacy-dashboard .map-legend { max-width: calc(100% - 40px); flex-wrap: wrap; gap: 8px 12px; }
+}
+@media (max-width: 620px) {
+  .legacy-dashboard .top-actions { gap: 6px; }
+  .legacy-dashboard .brand-row strong { font-size: .72rem; }.legacy-dashboard .brand-row span { display: none; }
+  .legacy-dashboard .map-toolbar { left: 10px; right: 10px; }
+  .legacy-dashboard .search-box { flex: 1; width: auto; }
+  .legacy-dashboard .connection-scene { grid-template-columns: 1fr; }
+  .legacy-dashboard .path-line { width: 2px; height: 70px; top: 90px; left: 50%; }
+  .legacy-dashboard .signal-path { min-height: 80px; }
+  .legacy-dashboard .telemetry-row { grid-template-columns: 1fr; }
+  .legacy-dashboard .sensor-modal { max-height: calc(100vh - 92px); overflow: auto; }
+  .legacy-dashboard .event-bubble { width: 170px; left: 30px; top: -105px; }
+}
+
+.legacy-dashboard {height:100%; min-height:560px; display:flex; flex-direction:column; overflow:hidden; background:#0d1421; color:#e8edf6; font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; position:relative;}
+.legacy-dashboard button,.legacy-dashboard input,.legacy-dashboard select {font:inherit; color:inherit;}
+.legacy-dashboard button {cursor:pointer;}
+.legacy-dashboard-bar {height:54px; min-height:54px; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:0 17px; background:#111b2a; border-bottom:1px solid #26354a; z-index:15;}
+.legacy-dashboard-heading {display:grid; gap:2px; min-width:180px;}
+.legacy-dashboard-heading strong {font-size:.83rem; letter-spacing:.13em; color:#f0f3f8;}
+.legacy-dashboard-heading span {font-size:.65rem; color:#8ea0bb;}
+.legacy-source-tabs {display:flex; align-items:center; gap:5px; padding:4px; border:1px solid #263650; border-radius:9px; background:#0d1421;}
+.legacy-source-tabs button {display:flex; align-items:center; gap:7px; border:0; border-radius:6px; padding:7px 12px; color:#91a3b9; background:transparent; font-size:.7rem;}
+.legacy-source-tabs button.active {background:#26364c; color:#e8edf6;}
+.legacy-live-info {display:flex; align-items:center; gap:7px; font-size:.61rem; letter-spacing:.04em; color:#8ea0bb; white-space:nowrap;}
+.legacy-live-info b {color:#d9e3ef; font-variant-numeric:tabular-nums; font-weight:650;}
+.legacy-live-dot {width:7px; height:7px; border-radius:50%; background:#56a77c; display:inline-block;}
+.legacy-workspace {height:calc(100% - 54px); flex:1; min-height:0; position:relative; overflow:hidden;}
+.legacy-dashboard .dashboard-scroll {height:calc(100% - 166px); overflow:auto; padding:7px 15px 24px; scrollbar-width:thin;}
+.legacy-dashboard .side-panel {display:block; overflow:visible;}
+.legacy-dashboard .side-panel.collapsed {overflow:visible;}
+.legacy-dashboard .side-panel.collapsed > *:not(.collapse-tab) {display:none;}
+.legacy-dashboard .map-stage {position:absolute; inset:0; height:100%; width:100%;}
+.legacy-dashboard .map-viewport {position:absolute; inset:0; overflow:hidden;}
+.legacy-dashboard .map-inner {inset:2% 1% 3%;}
+.legacy-dashboard .sensor-overlay {position:absolute; inset:0; z-index:80; display:grid; place-items:center; background:rgba(5,10,18,.58); backdrop-filter:blur(4px);}
+.legacy-dashboard .sensor-modal {max-height:calc(100% - 32px); overflow:auto;}
+.legacy-dashboard .dashboard-kpis,.legacy-dashboard .system-data-summary {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; padding:10px 15px 0;}
+.legacy-dashboard .dashboard-kpis > div,.legacy-dashboard .system-data-summary > div {display:grid; gap:3px; padding:9px 10px; border:1px solid #273950; border-radius:8px; background:#141f30;}
+.legacy-dashboard .dashboard-kpis small,.legacy-dashboard .system-data-summary span {font-size:.59rem; color:#8193ac;}
+.legacy-dashboard .dashboard-kpis strong,.legacy-dashboard .system-data-summary strong {font-size:1rem; color:#e8edf6; font-variant-numeric:tabular-nums;}
+.legacy-dashboard .system-data-summary {grid-template-columns:1fr; padding-top:16px;}
+.legacy-dashboard .system-data-summary > div {display:flex; justify-content:space-between; align-items:center;}
+.legacy-dashboard .system-note {margin-top:16px;}
+.legacy-dashboard .sync-system-action {display:grid; gap:9px; padding:8px 17px 12px;}
+.legacy-dashboard .primary-sync-btn {min-height:40px; display:flex; justify-content:center; align-items:center; gap:8px; border:1px solid #365274; border-radius:8px; background:#1c3552; color:#e1ebf7; font-size:.72rem; font-weight:700;}
+.legacy-dashboard .primary-sync-btn:hover {background:#254366;}
+.legacy-dashboard .sync-system-action small {color:#71849e; font-size:.62rem; line-height:1.5;}
+.legacy-dashboard .sensor-detail-foot {padding:0 24px 18px; color:#8294aa; font-size:.62rem; line-height:1.5;}
+.legacy-dashboard .legacy-dashboard-bar svg {flex:none;}
+.legacy-dashboard .map-toolbar {justify-content:flex-end;}
+.legacy-dashboard .map-toolbar button {color:#d8e0ea;}
+.legacy-dashboard .map-legend {bottom:38px;}
+.legacy-dashboard .bottom-status {height:30px;}
+.legacy-dashboard .metric strong {color:#e8edf6;}
+.legacy-dashboard .metric small {color:#8192a8;}
+.legacy-dashboard .sensor-modal-head,.legacy-dashboard .sensor-title,.legacy-dashboard .connection-scene,.legacy-dashboard .telemetry-row {color:#e8edf6;}
+@media (max-width:1180px) {
+  .legacy-dashboard .side-panel {width:290px; min-width:290px;}
+  .legacy-dashboard .side-panel.collapsed {width:0; min-width:0;}
+  .legacy-dashboard-bar {gap:8px; padding-inline:12px;}
+}
+@media (max-width:900px) {
+  .legacy-dashboard {min-height:720px;}
+  .legacy-dashboard .side-panel {position:absolute; top:0; bottom:0; width:min(330px,84vw); min-width:min(330px,84vw); box-shadow:16px 0 45px rgba(0,0,0,.35);}
+  .legacy-dashboard .side-panel.right {right:0; box-shadow:-16px 0 45px rgba(0,0,0,.35);}
+  .legacy-dashboard .side-panel.collapsed {width:0; min-width:0;}
+  .legacy-dashboard .map-legend {max-width:calc(100% - 36px); flex-wrap:wrap; gap:8px 12px;}
+  .legacy-dashboard-bar {height:auto; min-height:58px; flex-wrap:wrap; justify-content:flex-start; padding:8px 12px;}
+  .legacy-dashboard-heading {min-width:130px;}
+  .legacy-live-info {margin-left:auto;}
+  .legacy-source-tabs {order:3;}
+  .legacy-workspace {height:calc(100% - 78px);}
+}
+@media (max-width:620px) {
+  .legacy-dashboard {min-height:690px;}
+  .legacy-dashboard-heading strong {font-size:.73rem;}
+  .legacy-dashboard-heading span {font-size:.58rem;}
+  .legacy-source-tabs button {padding:7px 9px; font-size:.64rem;}
+  .legacy-live-info {font-size:.55rem;}
+  .legacy-dashboard .map-toolbar {left:10px; right:10px;}
+  .legacy-dashboard .search-box {flex:1; width:auto;}
+  .legacy-dashboard .connection-scene {grid-template-columns:1fr;}
+  .legacy-dashboard .path-line {width:2px; height:70px; top:90px; left:50%;}
+  .legacy-dashboard .signal-path {min-height:80px;}
+  .legacy-dashboard .telemetry-row {grid-template-columns:1fr;}
+  .legacy-dashboard .event-bubble {width:170px; left:30px; top:-105px;}
+}
+
+
+/* Shared map surface for UC-02 and UC-05. Both use the same geospatial map; UC-05 adds source/simulation controls. */
+.uc02-map-wrap,
+.uc05-map-wrap {
+  width: 100%;
+  height: clamp(590px, 72vh, 760px);
+  min-height: 560px;
+  margin: 0 0 22px;
+  overflow: hidden;
+  border: 1px solid #293b53;
+  border-radius: 12px;
+  background: #0d1421;
+  box-shadow: 0 10px 30px rgba(0,0,0,.16);
+}
+.uc02-map-wrap > .legacy-dashboard,
+.uc05-map-wrap > .legacy-dashboard {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.uc05-geospatial-section,
+.uc05-portfolio-section,
+.uc02-exposure-section {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.uc05-geospatial-section { margin-bottom: 30px; }
+.uc05-portfolio-section { padding-top: 2px; }
+.uc02-exposure-section { margin-top: 10px; }
+.uc05-subheading { display: grid; gap: 5px; margin: 0 0 2px; }
+.uc05-subheading > span {
+  color: #7f95b1;
+  font-size: .61rem;
+  font-weight: 750;
+  letter-spacing: .12em;
+}
+.uc05-subheading > b { color: #e3ebf5; font-size: .98rem; font-weight: 700; }
+.uc05-subheading > small { color: #8b9db4; font-size: .68rem; line-height: 1.5; }
+.compare-grid-exact-two {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 11px;
+}
+.compare-grid-exact-two > .compare-card:nth-of-type(n+3) { display: none !important; }
+.compare-grid-exact-two[data-compare-count="2"] > .compare-card { min-width: 0; }
+.compare-grid-exact-two .compare-card { background: #111c2b; border-color: #2a405a; color: #e7edf6; }
+.compare-grid-exact-two .compare-card .detail-pair { border-color: #2b3f57; }
+.compare-grid-exact-two .compare-card .detail-pair span { color: #8ea1ba; }
+.compare-grid-exact-two .compare-card .detail-pair b { color: #e5edf7; }
+.compare-grid-exact-two .compare-empty { grid-column: 1 / -1; color: #90a1b7; }
+.legacy-dashboard .legacy-filter-panel-content { padding: 15px 16px; display: grid; gap: 15px; }
+.legacy-dashboard .legacy-filter-subtitle { color: #dce5f0; font-size: .7rem; font-weight: 700; padding-top: 4px; border-top: 1px solid #26384e; }
+.legacy-dashboard .legacy-filter-fields { display: grid; gap: 11px; }
+.legacy-dashboard .legacy-filter-fields > label { display: grid; gap: 6px; color: #9eafc5; font-size: .67rem; font-weight: 650; }
+.legacy-dashboard .legacy-filter-fields select {
+  width: 100%; min-height: 38px; padding: 0 9px; border: 1px solid #2c405b;
+  border-radius: 8px; background: #172235; color: #e0e9f4; font-size: .68rem;
+}
+.legacy-dashboard .legacy-filter-fields option { background: #172235; color: #e0e9f4; }
+.legacy-dashboard .legacy-layer-list { display: grid; gap: 8px; }
+.legacy-dashboard .legacy-layer-list label {
+  min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; border: 1px solid #293d56; border-radius: 8px; background: #151f30; color: #d9e4f1;
+}
+.legacy-dashboard .legacy-layer-list label > span { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: .67rem; line-height: 1.35; }
+.legacy-dashboard .legacy-layer-list label svg { color: #8ca8cb; flex: none; }
+.legacy-dashboard .legacy-layer-list input[type="checkbox"] { accent-color: #5d8fc9; width: 15px; height: 15px; flex: none; }
+.legacy-dashboard .map-layers-popover {
+  position: absolute; top: 58px; right: 16px; z-index: 30; width: min(310px, calc(100% - 30px));
+  max-height: calc(100% - 82px); overflow: auto; padding: 12px; border: 1px solid #344c68;
+  border-radius: 11px; background: rgba(17,27,42,.98); box-shadow: 0 18px 44px rgba(0,0,0,.38);
+}
+.legacy-dashboard .map-layers-popover-head { display: flex; align-items: center; justify-content: space-between; color: #e4edf7; font-size: .73rem; margin-bottom: 10px; }
+.legacy-dashboard .map-layers-popover-head button { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid #2c4059; border-radius: 7px; background: #18263a; color: #c5d3e3; }
+.legacy-dashboard .map-layers-popover .legacy-filter-fields { margin-bottom: 12px; }
+.legacy-dashboard .province-exposure-cloud.unknown { background: rgba(139,151,166,.17); border: 1px solid rgba(160,171,185,.48); box-shadow: 0 0 0 7px rgba(139,151,166,.055); }
+.legacy-dashboard .province-exposure-cloud.safe { background: rgba(57,118,188,.20); border: 1px solid rgba(91,151,218,.60); box-shadow: 0 0 0 7px rgba(57,118,188,.07); }
+.legacy-dashboard .province-exposure-cloud.watch { background: rgba(221,139,58,.22); border: 1px solid rgba(225,154,83,.65); box-shadow: 0 0 0 7px rgba(221,139,58,.07); }
+.legacy-dashboard .province-exposure-cloud.danger { background: rgba(194,68,68,.25); border: 1px solid rgba(218,96,96,.70); box-shadow: 0 0 0 7px rgba(194,68,68,.08); }
+.legacy-dashboard .map-attribution { right: 12px; left: auto; bottom: 36px; max-width: min(440px, 70%); text-align: right; color: #8295ad; background: rgba(9,17,29,.78); font-size: .55rem; }
+.legacy-dashboard .map-legend { bottom: 38px; max-width: min(70%, 650px); flex-wrap: wrap; gap: 7px 12px; }
+.legacy-dashboard .map-controls { color: #90a5bf; background: rgba(15,26,41,.92); border-color: #2b405a; }
+.legacy-dashboard .map-controls button { color: #dbe5f1; background: #18263a; border-color: #324a66; }
+.legacy-dashboard .map-controls button:hover { background: #21364f; }
+.legacy-dashboard .asset-map-pin { background: rgba(19,35,54,.95); border-color: #7697bd; color: #e6eef8; }
+.legacy-dashboard .asset-map-pin {
+  position: absolute;
+  z-index: 9;
+  transform: translate(-50%, -50%);
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border-radius: 5px;
+  padding: 0;
+  border: 1px solid #83a7ce;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 42, 67, .98);
+  color: #f1f6fc;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, .35);
+  cursor: pointer;
+}
+
+/* Nama objek disembunyikan secara default */
+.legacy-dashboard .asset-map-pin span {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+/* Nama objek muncul ketika kursor diarahkan ke marker */
+.legacy-dashboard .asset-map-pin:hover span,
+.legacy-dashboard .asset-map-pin:focus-visible span {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+.legacy-dashboard .readonly-sensor-note { color: #b1c1d4; background: #18273a; border-color: #334b67; }
+.legacy-dashboard .readonly-sensor-note svg { color: #9ab6d8; }
+@media (max-width: 900px) {
+  .uc02-map-wrap, .uc05-map-wrap { height: clamp(640px, 78vh, 790px); min-height: 620px; }
+  .compare-grid-exact-two { grid-template-columns: 1fr !important; }
+  .legacy-dashboard .map-layers-popover { top: 55px; right: 10px; }
+}
+@media (max-width: 620px) {
+  .uc02-map-wrap, .uc05-map-wrap { height: 700px; min-height: 680px; }
+  .uc05-subheading > b { font-size: .9rem; }
+  .legacy-dashboard .map-legend { max-width: calc(100% - 24px); bottom: 38px; left: 10px; right: 10px; }
+  .legacy-dashboard .map-attribution { left: auto; right: 9px; bottom: 6px; max-width: 72%; font-size: .5rem; }
+}
+
+/* ===== Layout correction: keep map centered in a permanent safe column ===== */
+.legacy-dashboard {
+  --legacy-panel-width: clamp(250px, 22%, 320px);
+  box-sizing: border-box;
+}
+.legacy-dashboard *,
+.legacy-dashboard *::before,
+.legacy-dashboard *::after {
+  box-sizing: border-box;
+}
+.legacy-dashboard .side-panel {
+  width: var(--legacy-panel-width);
+  min-width: var(--legacy-panel-width);
+  overflow: visible;
+  box-shadow: none;
+}
+.legacy-dashboard .side-panel.left {
+  left: 0;
+}
+.legacy-dashboard .side-panel.right {
+  right: 0;
+}
+.legacy-dashboard .side-panel.collapsed {
+  width: 0;
+  min-width: 0;
+  overflow: visible;
+}
+.legacy-dashboard .side-panel-scroll {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: #3a506b #111a29;
+}
+.legacy-dashboard .side-panel-scroll::-webkit-scrollbar {
+  width: 7px;
+}
+.legacy-dashboard .side-panel-scroll::-webkit-scrollbar-track {
+  background: #111a29;
+}
+.legacy-dashboard .side-panel-scroll::-webkit-scrollbar-thumb {
+  background: #3a506b;
+  border-radius: 8px;
+}
+.legacy-dashboard .panel-heading {
+  position: sticky;
+  top: 0;
+  z-index: 16;
+  background: #111a29;
+}
+.legacy-dashboard .collapse-tab {
+  z-index: 30;
+}
+.legacy-dashboard .collapse-tab.right {
+  right: -26px;
+}
+.legacy-dashboard .collapse-tab.left {
+  left: -26px;
+}
+/* The map has a permanent central column, so opening or closing either panel
+   does not resize, pan, or hide the map beneath the panel. */
+.legacy-dashboard .map-stage {
+  inset: 0 var(--legacy-panel-width);
+  width: auto;
+  height: 100%;
+  min-width: 0;
+}
+.legacy-dashboard .map-viewport {
+  inset: 0;
+}
+.legacy-dashboard .map-toolbar {
+  left: 12px;
+  right: 48px;
+  gap: 7px;
+  justify-content: flex-end;
+}
+.legacy-dashboard .map-toolbar .search-box {
+  width: min(250px, 34%);
+  min-width: 130px;
+  flex: 0 1 250px;
+}
+.legacy-dashboard .map-toolbar button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.legacy-dashboard .dashboard-scroll {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  padding-bottom: 8px;
+}
+.legacy-dashboard .area-picker {
+  position: relative;
+  top: auto;
+  left: auto;
+  right: auto;
+  max-height: 250px;
+  margin: 8px 15px 4px;
+}
+.legacy-dashboard .picker-list {
+  max-height: 190px;
+}
+.legacy-dashboard .map-legend {
+  left: 12px;
+  right: 12px;
+  bottom: 38px;
+  max-width: calc(100% - 24px);
+  flex-wrap: wrap;
+  gap: 7px 11px;
+  z-index: 11;
+}
+.legacy-dashboard .map-attribution {
+  right: 9px;
+  bottom: 7px;
+  max-width: 68%;
+  z-index: 11;
+}
+.legacy-dashboard .bottom-status {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 12;
+}
+.legacy-dashboard .danger-btn.stop-simulation-btn {
+  background: #7f292d;
+  border: 1px solid #d66b6f;
+  min-height: 44px;
+  box-shadow: 0 4px 14px rgba(130, 34, 39, .18);
+}
+.legacy-dashboard .danger-btn.stop-simulation-btn:hover {
+  background: #97363b;
+}
+.legacy-dashboard .active-event-card small {
+  display: block;
+  color: #d6a8a8;
+  font-size: .64rem;
+  line-height: 1.45;
+}
+/* Exposure clouds belong to the relevant asset province only. */
+.legacy-dashboard .province-exposure-cloud {
+  position: absolute;
+  z-index: 2;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+/* Missing map-pin base styles previously caused asset layer controls to have
+   no visible/positioned marker despite the layer checkbox being enabled. */
+.legacy-dashboard .asset-map-pin {
+  position: absolute;
+  z-index: 9;
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  box-sizing: border-box;
+  border-radius: 4px;
+  padding: 0;
+  border: 1px solid #83a7ce;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 42, 67, .98);
+  color: #f1f6fc;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, .35);
+  cursor: pointer;
+}
+.legacy-dashboard .asset-map-pin:hover,
+.legacy-dashboard .asset-map-pin:focus-visible {
+  z-index: 14;
+  outline: 2px solid #c5def8;
+  outline-offset: 2px;
+  transform: translate(-50%, -50%) scale(1.12);
+}
+.legacy-dashboard .asset-map-pin.risk-high {
+  background: #7f3036;
+  border-color: #e29a9e;
+}
+.legacy-dashboard .asset-map-pin.risk-medium {
+  background: #70521f;
+  border-color: #e1bd72;
+}
+.legacy-dashboard .asset-map-pin.risk-low {
+  background: #214e70;
+  border-color: #91bfe2;
+}
+.legacy-dashboard .asset-map-pin.unverified {
+  background: #485366;
+  border-color: #b6c0cf;
+}
+.legacy-dashboard .asset-map-pin span {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 6px;
+  border: 1px solid rgba(126, 157, 192, .55);
+  border-radius: 5px;
+  background: rgba(8, 17, 29, .94);
+  color: #f0f5fb;
+  font-size: .55rem;
+  font-weight: 700;
+  line-height: 1.2;
+  pointer-events: none;
+}
+.legacy-dashboard .iot-marker {
+  z-index: 7;
+}
+.legacy-dashboard .asset-map-pin + .iot-marker {
+  z-index: 8;
+}
+
+@media (max-width: 1050px) {
+  .legacy-dashboard {
+    --legacy-panel-width: clamp(205px, 23%, 250px);
+  }
+  .legacy-dashboard .map-toolbar {
+    right: 42px;
+  }
+  .legacy-dashboard .map-toolbar .search-box {
+    width: min(190px, 30%);
+    min-width: 110px;
+  }
+}
+@media (max-width: 760px) {
+  .legacy-dashboard {
+    --legacy-panel-width: 0px;
+  }
+  .legacy-dashboard .map-stage {
+    inset: 0;
+  }
+  .legacy-dashboard .side-panel.open {
+    width: min(320px, 84vw);
+    min-width: min(320px, 84vw);
+    box-shadow: 14px 0 36px rgba(0, 0, 0, .38);
+  }
+  .legacy-dashboard .side-panel.right.open {
+    box-shadow: -14px 0 36px rgba(0, 0, 0, .38);
+  }
+  .legacy-dashboard .map-toolbar {
+    left: 10px;
+    right: 42px;
+  }
+  .legacy-dashboard .map-toolbar .search-box {
+    width: auto;
+    flex: 1 1 140px;
+  }
+  .legacy-dashboard .map-legend {
+    bottom: 40px;
+    left: 8px;
+    right: 8px;
+    max-width: calc(100% - 16px);
+  }
+}
+
+/* Preserve the source-map aspect ratio while fitting it into the fixed center column. */
+/* Area peta menjadi acuan koordinat yang sama dengan gambar asli. */
+.legacy-dashboard .map-viewport {
+  container-type: size;
+}
+
+/* Ukuran map-inner mengikuti rasio gambar 1920 x 1067. */
+.legacy-dashboard .map-inner {
+  position: absolute;
+  inset: auto;
+
+  left: 50%;
+  top: 50%;
+
+  width: min(100cqw, calc(100cqh * 1.79943768));
+  height: min(100cqh, calc(100cqw * 0.555729));
+
+  aspect-ratio: 1920 / 1067;
+  box-sizing: border-box;
+
+  transition: transform .45s cubic-bezier(.2, .8, .2, 1);
+}
+
+/* Gambar memenuhi area map-inner yang sudah sesuai rasio aslinya. */
+.legacy-dashboard .indonesia-base-map {
+  object-fit: fill;
+}
+
+/* ===== Single right-side panel slot for UC-02 and UC-05 =====
+   UC-02 uses the summary panel; UC-05 switches between Pengujian and Ringkasan.
+   Keeping the same slot width makes the map area identical in both use cases. */
+.legacy-dashboard {
+  --legacy-panel-width: clamp(280px, 26%, 340px);
+}
+
+.legacy-dashboard.panel-open .map-stage {
+  inset: 0 var(--legacy-panel-width) 0 0 !important;
+}
+
+.legacy-dashboard.panel-closed .map-stage {
+  inset: 0 !important;
+}
+
+.legacy-dashboard .right-panel-dock {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 0;
+  overflow: visible;
+  z-index: 22;
+  pointer-events: none;
+  transition: width .24s ease;
+}
+
+.legacy-dashboard .right-panel-dock.has-active-panel {
+  width: var(--legacy-panel-width);
+  background: #111a29;
+  border-left: 1px solid #24344a;
+  pointer-events: auto;
+}
+
+.legacy-dashboard .right-panel-switchers {
+  position: absolute;
+  left: -28px;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 34;
+  pointer-events: auto;
+}
+
+.legacy-dashboard .right-panel-switchers button {
+  width: 28px;
+  height: 42px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid #2b3e58;
+  border-right: 0;
+  border-radius: 8px 0 0 8px;
+  background: #172235;
+  color: #dce7f4;
+  cursor: pointer;
+  box-shadow: -5px 4px 14px rgba(0,0,0,.16);
+}
+
+.legacy-dashboard .right-panel-switchers button:hover,
+.legacy-dashboard .right-panel-switchers button.active {
+  background: #223650;
+  color: #ffffff;
+  border-color: #54769e;
+}
+
+.legacy-dashboard .right-panel-content {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  background: #111a29;
+  color: #e8edf6;
+  overflow: hidden;
+  border-left: 1px solid #24344a;
+}
+
+.legacy-dashboard .simulation-panel-content > .side-panel-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #3a506b #111a29;
+}
+
+.legacy-dashboard .dashboard-panel-content {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #3a506b #111a29;
+}
+
+.legacy-dashboard .right-panel-content::-webkit-scrollbar,
+.legacy-dashboard .simulation-panel-content > .side-panel-scroll::-webkit-scrollbar {
+  width: 7px;
+}
+
+.legacy-dashboard .right-panel-content::-webkit-scrollbar-track,
+.legacy-dashboard .simulation-panel-content > .side-panel-scroll::-webkit-scrollbar-track {
+  background: #111a29;
+}
+
+.legacy-dashboard .right-panel-content::-webkit-scrollbar-thumb,
+.legacy-dashboard .simulation-panel-content > .side-panel-scroll::-webkit-scrollbar-thumb {
+  background: #3a506b;
+  border-radius: 8px;
+}
+
+.legacy-dashboard .right-panel-content .panel-heading {
+  position: sticky;
+  top: 0;
+  z-index: 16;
+  background: #111a29;
+}
+
+.legacy-dashboard .right-panel-content .dashboard-scroll {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  padding-bottom: 18px;
+}
+
+.legacy-dashboard .map-toolbar {
+  left: 14px;
+  right: 44px;
+}
+
+.legacy-dashboard .map-layers-popover {
+  right: 14px;
+  max-width: min(310px, calc(100% - 28px));
+}
+
+@media (max-width: 1050px) {
+  .legacy-dashboard {
+    --legacy-panel-width: clamp(260px, 29%, 320px);
+  }
+}
+
+@media (max-width: 760px) {
+  .legacy-dashboard {
+    --legacy-panel-width: min(320px, 84vw);
+  }
+
+  .legacy-dashboard.panel-open .map-stage {
+    inset: 0 var(--legacy-panel-width) 0 0 !important;
+  }
+
+  .legacy-dashboard .right-panel-switchers {
+    top: 12px;
+    gap: 7px;
+  }
+
+  .legacy-dashboard .right-panel-switchers button {
+    width: 27px;
+    height: 40px;
+  }
+
+  .legacy-dashboard .map-toolbar {
+    left: 9px;
+    right: 38px;
+    gap: 5px;
+  }
+
+  .legacy-dashboard .map-toolbar .search-box {
+    min-width: 90px;
+    flex: 1 1 120px;
+  }
+
+  .legacy-dashboard .map-toolbar button {
+    padding-inline: 7px;
+    font-size: .63rem;
+  }
+}
+
+.legacy-dashboard .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+
+/* ==========================================
+   STATIC MAP CANVAS - UC-02 & UC-05
+   Peta tidak berubah ukuran atau posisi
+   ketika sidebar dibuka / ditutup.
+========================================== */
+
+/* 1. Area peta UC-02 dan UC-05 memiliki
+      lebar dan posisi yang sama. */
+.uc02-map-wrap,
+.uc05-map-wrap {
+  width: calc(
+    100vw - 264px
+    - var(--jasindo-page-padding, 36px)
+    - var(--jasindo-page-padding, 36px)
+  );
+
+  margin-left: calc(
+    264px - var(--jasindo-workspace-sidebar-width, 264px)
+  );
+
+  margin-right: 0;
+}
+
+/* 2. Area peta selalu menyisakan ruang
+      panel kanan, baik panel terbuka maupun tertutup. */
+.legacy-dashboard .map-stage,
+.legacy-dashboard.panel-open .map-stage,
+.legacy-dashboard.panel-closed .map-stage {
+  position: absolute !important;
+  inset: 0 var(--legacy-panel-width) 0 0 !important;
+  width: auto !important;
+  height: 100%;
+  transition: none !important;
+}
+
+/* 3. Slot panel kanan selalu tersedia.
+      Panel hanya mengubah isi/tampilannya. */
+.legacy-dashboard .right-panel-dock {
+  width: var(--legacy-panel-width);
+  background: transparent;
+  border: 0;
+  pointer-events: none;
+}
+
+/* Ketika panel dibuka, tampilkan panelnya
+   tanpa mengubah ukuran area peta. */
+.legacy-dashboard .right-panel-dock.has-active-panel {
+  width: var(--legacy-panel-width);
+  background: #111a29;
+  border-left: 1px solid #24344a;
+  pointer-events: auto;
+}
+
+/* Tombol panah tetap bisa digunakan */
+.legacy-dashboard .right-panel-switchers {
+  pointer-events: auto;
+}
+
+/* 4. Tampilan responsif untuk layar kecil */
+@media (max-width: 760px) {
+  .uc02-map-wrap,
+  .uc05-map-wrap {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .legacy-dashboard .map-stage,
+  .legacy-dashboard.panel-open .map-stage,
+  .legacy-dashboard.panel-closed .map-stage {
+    inset: 0 !important;
+  }
+
+  .legacy-dashboard .right-panel-dock {
+    width: 0;
+  }
+
+  .legacy-dashboard .right-panel-dock.has-active-panel {
+    width: min(320px, 84vw);
+  }
+}
+
+
+/* ===== Penyempurnaan layer peta, nama provinsi, dan kartu simulasi ===== */
+
+/* Daftar layer dipisahkan menjadi data peta dan layer analisis. */
+.legacy-dashboard .legacy-layer-list {
+  display: grid;
+  gap: 11px;
+}
+
+.legacy-dashboard .legacy-layer-group {
+  display: grid;
+  gap: 7px;
+}
+
+.legacy-dashboard .legacy-layer-group + .legacy-layer-group {
+  padding-top: 10px;
+  border-top: 1px solid #293d56;
+}
+
+.legacy-dashboard .legacy-layer-group-title {
+  color: #8fa6c2;
+  font-size: .61rem;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.legacy-dashboard .legacy-layer-list label {
+  min-height: 39px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #293d56;
+  border-radius: 8px;
+  background: #151f30;
+  color: #d9e4f1;
+}
+
+.legacy-dashboard .legacy-layer-list label > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: .67rem;
+  line-height: 1.35;
+}
+
+.legacy-dashboard .legacy-layer-list label svg {
+  color: #8ca8cb;
+  flex: none;
+}
+
+.legacy-dashboard .legacy-layer-list input[type="checkbox"] {
+  accent-color: #5d8fc9;
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+.legacy-dashboard .legacy-layer-note {
+  margin: 2px 1px 0;
+  color: #7187a2;
+  font-size: .59rem;
+  line-height: 1.5;
+}
+
+/* Nama provinsi selalu terlihat, sedangkan nama objek tetap hanya saat hover. */
+.legacy-dashboard .province-name-label {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: none;
+  padding: 3px 5px;
+  border: 1px solid rgba(139, 170, 207, .66);
+  border-radius: 5px;
+  box-sizing: border-box;
+  background: rgba(8, 18, 31, .91);
+  color: #f0f6ff;
+  font-size: 8px;
+  font-weight: 750;
+  line-height: 1.15;
+  text-align: center;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .55);
+  pointer-events: none;
+  box-shadow: 0 2px 7px rgba(0, 0, 0, .24);
+}
+
+/* Kartu simulasi berada terpisah dari titik sensor dan diposisikan oleh algoritma. */
+.legacy-dashboard .event-bubble {
+  position: absolute;
+  z-index: 16;
+  left: 12px;
+  top: 48px;
+  transform: none;
+  box-sizing: border-box;
+  min-height: 116px;
+  padding: 11px 13px;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  border: 1px solid rgba(255, 255, 255, .82);
+  border-radius: 12px;
+  background: rgba(250, 247, 239, .97);
+  color: #1f2937;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .32);
+  pointer-events: none;
+}
+
+.legacy-dashboard .event-bubble:after {
+  display: none;
+}
+
+.legacy-dashboard .event-bubble strong {
+  color: #b42318;
+  font-size: .72rem;
+  line-height: 1.3;
+}
+
+.legacy-dashboard .event-bubble span {
+  font-size: .84rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.legacy-dashboard .event-bubble small {
+  color: #667085;
+  font-size: .58rem;
+  line-height: 1.4;
+}
+
+/* Citra satelit adalah gaya visual demo pada peta dasar, bukan feed satelit aktual. */
+.legacy-dashboard .map-viewport.satellite-view {
+  background: radial-gradient(
+    circle at 43% 45%,
+    #31473b 0,
+    #1b2d2d 48%,
+    #0b1719 100%
+  );
+}
+
+.legacy-dashboard .map-viewport.satellite-view .map-grid-lines {
+  opacity: .035;
+}
+
+.legacy-dashboard .map-viewport.satellite-view .indonesia-base-map {
+  filter: grayscale(.45) sepia(.42) hue-rotate(62deg) saturate(1.45) brightness(.72) contrast(1.28);
+  opacity: 1;
+}
+
+.legacy-dashboard .map-inner.satellite-map::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: .22;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(ellipse at 24% 34%, rgba(111, 145, 91, .42), transparent 28%),
+    radial-gradient(ellipse at 56% 58%, rgba(118, 145, 92, .34), transparent 34%),
+    radial-gradient(ellipse at 82% 43%, rgba(100, 130, 87, .34), transparent 25%),
+    repeating-linear-gradient(
+      28deg,
+      rgba(191, 190, 139, .08) 0 1px,
+      transparent 1px 9px
+    );
+}
+
+@media (max-width: 620px) {
+  .legacy-dashboard .province-name-label {
+    font-size: 7px;
+    padding: 2px 4px;
+  }
+
+  .legacy-dashboard .event-bubble {
+    min-height: 108px;
+    padding: 9px 10px;
+  }
+}
+
+/* Label provinsi di sebelah kiri marker */
+.legacy-dashboard .iot-marker.label-left b {
+  top: 50%;
+  left: auto;
+  right: calc(100% + 6px);
+  transform: translateY(-50%);
+}
+
+/* Label provinsi di bawah marker */
+.legacy-dashboard .iot-marker.label-below b {
+  top: calc(100% + 6px);
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+}
+
+/* Lampung: di kiri sekaligus di bawah marker */
+.legacy-dashboard .iot-marker.label-left.label-below b {
+  top: calc(100% + 6px);
+  left: auto;
+  right: calc(100% + 6px);
+  transform: none;
+}
+
+
+/* Notifikasi kejadian di pojok kanan atas peta */
+.legacy-dashboard .map-event-notification {
+  position: absolute;
+  top: 60px;
+  right: 14px;
+  z-index: 15;
+  width: min(290px, calc(100% - 28px));
+  box-sizing: border-box;
+
+  padding: 12px 14px;
+  display: grid;
+  gap: 5px;
+
+  border: 1px solid rgba(255,255,255,.82);
+  border-left: 3px solid #ef4444;
+  border-radius: 11px;
+
+  background: rgba(250,247,239,.97);
+  color: #1f2937;
+  box-shadow: 0 10px 28px rgba(0,0,0,.30);
+
+  pointer-events: none;
+}
+
+.legacy-dashboard .map-event-notification-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.legacy-dashboard .map-event-notification-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  flex: 0 0 auto;
+}
+
+.legacy-dashboard .map-event-notification-head strong {
+  color: #b42318;
+  font-size: .65rem;
+  letter-spacing: .04em;
+}
+
+.legacy-dashboard .map-event-notification b {
+  font-size: .83rem;
+  line-height: 1.3;
+}
+
+.legacy-dashboard .map-event-notification > span:not(.map-event-notification-dot) {
+  font-size: .7rem;
+  font-weight: 700;
+}
+
+.legacy-dashboard .map-event-notification small {
+  color: #667085;
+  font-size: .61rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 760px) {
+  .legacy-dashboard .map-event-notification {
+    top: 58px;
+    right: 10px;
+    width: min(260px, calc(100% - 20px));
+    padding: 9px 11px;
+  }
+}
