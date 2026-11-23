@@ -35,9 +35,112 @@ const formatThousands = (value) => {
 const parseThousands = (value) => {
   return Number(String(value ?? '').replace(/\D/g, '')) || 0;
 };
+
+// State Machine SensorIoT: status lifecycle dipisahkan dari konektivitas online.
+const sensorLifecycleStatus = (sensor) => {
+  if (sensor?.lifecycleStatus) return sensor.lifecycleStatus;
+  if (sensor?.dataStatus === 'Tidak Valid') return 'Butuh Kalibrasi';
+  return sensor?.online ? 'Aktif/Online' : 'Terputus/Offline';
+};
+
+// State Machine RekomendasiMitigasi: lifecycle rinci; status bisnis UC-09 tetap disimpan terpisah.
+const recommendationLifecycleFromLegacy = (recommendation) => {
+  if (recommendation?.lifecycleStatus) return recommendation.lifecycleStatus;
+  const legacyStatus = recommendation?.status;
+  if (legacyStatus === 'Menunggu Verifikasi') return 'Selesai Dilaporkan';
+  if (legacyStatus === 'Selesai') return 'Terverifikasi';
+  if (legacyStatus === 'Lewat tenggat') return 'Terlambat';
+  if (legacyStatus === 'Ditolak') return 'Perlu Revisi';
+  if (legacyStatus === 'Menunggu Tindak Lanjut') {
+    const note = String(recommendation?.reviewNote || '').toLowerCase();
+    return /(belum memadai|perlu revisi|minta perbaikan)/.test(note) ? 'Perlu Revisi' : 'Terkirim';
+  }
+  return 'Dibuat';
+};
+
+const recommendationBusinessStatus = (lifecycleStatus) => {
+  if (lifecycleStatus === 'Selesai Dilaporkan') return 'Menunggu Verifikasi';
+  if (lifecycleStatus === 'Terverifikasi') return 'Selesai';
+  if (lifecycleStatus === 'Terlambat') return 'Lewat tenggat';
+  return 'Menunggu Tindak Lanjut';
+};
+
+// Claim Assessment adalah kelas terpisah dari Klaim pada Class Diagram.
+const claimAssessmentLifecycleFromLegacy = (claim) => {
+  // Klaim baru hasil identifikasi dimulai pada state Inisiasi,
+  // termasuk data lama yang sebelumnya sudah dimigrasikan ke Estimasi Awal.
+  if (
+    claim?.status === 'Potensi Klaim' &&
+    !(Number(claim?.assessed) > 0) &&
+    !claim?.adjustmentStatus &&
+    (!claim?.assessmentStatus || claim.assessmentStatus === 'Estimasi Awal')
+  ) return 'Inisiasi';
+
+  if (claim?.assessmentStatus) return claim.assessmentStatus;
+  if (claim?.adjustmentStatus === 'Disetujui' || claim?.status === 'Selesai') return 'Final';
+  if (claim?.adjustmentStatus === 'Menunggu Review' || claim?.status === 'Menunggu Review') return 'Menunggu Review';
+  if (claim?.adjustmentStatus === 'Revisi' || claim?.status === 'Adjustment Revisi') return 'Butuh Revisi';
+  return 'Estimasi Awal';
+};
+
 const today = () => new Date().toISOString().slice(0, 10);
 const stamp = () => new Date().toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'medium' });
 const idFor = (prefix) => `${prefix}-${Date.now().toString().slice(-6)}`;
+
+// State Machine Objek Polis (Gambar 71): lifecycle polis dipisahkan dari verifikasi lokasi.
+const POLICY_LIFECYCLE_STATES = [
+  'Draft',
+  'Pending Underwriting',
+  'Aktif',
+  'Ditolak',
+  'Grace Period',
+  'Lapsed',
+  'Expired',
+  'Cancelled',
+];
+
+const POLICY_TRANSITIONS = {
+  'Draft': ['Pending Underwriting'],
+  'Pending Underwriting': ['Aktif', 'Ditolak'],
+  'Aktif': ['Grace Period', 'Expired', 'Cancelled'],
+  'Grace Period': ['Aktif', 'Lapsed'],
+  'Ditolak': [],
+  'Lapsed': [],
+  'Expired': [],
+  'Cancelled': [],
+};
+
+const policyStatusOf = (asset) =>
+  POLICY_LIFECYCLE_STATES.includes(asset?.policyStatus) ? asset.policyStatus : 'Draft';
+
+const policyStatusTone = (status) => {
+  if (status === 'Aktif') return 'success';
+  if (status === 'Pending Underwriting' || status === 'Grace Period') return 'warning';
+  if (status === 'Ditolak' || status === 'Lapsed' || status === 'Cancelled') return 'danger';
+  return 'neutral';
+};
+
+// Data lama yang belum memiliki policyStatus dimigrasikan ke Draft.
+// Field status lama tidak dipakai sebagai lifecycle karena sebelumnya terikat ke verifikasi lokasi.
+const normalizePolicyAsset = (asset) => {
+  const hasPolicyStatus = POLICY_LIFECYCLE_STATES.includes(asset?.policyStatus);
+  const policyStatus = hasPolicyStatus ? asset.policyStatus : 'Draft';
+  const policyStatusHistory = Array.isArray(asset?.policyStatusHistory)
+    ? asset.policyStatusHistory
+    : hasPolicyStatus
+      ? []
+      : [{
+          id: idFor('PHS'),
+          from: null,
+          to: 'Draft',
+          event: 'Status awal diselaraskan dengan State Machine Objek Polis',
+          actor: 'System',
+          at: stamp(),
+        }];
+
+  return { ...asset, policyStatus, policyStatusHistory };
+};
+
 const riskBand = (score) => Number(score) >= 70 ? 'Tinggi' : Number(score) >= 40 ? 'Menengah' : 'Rendah';
 const riskTone = (score) => Number(score) >= 70 ? 'danger' : Number(score) >= 40 ? 'warning' : 'success';
 const assetById = (assets, id) => assets.find((a) => a.id === id);
@@ -99,9 +202,46 @@ function loadStored(key, fallback) {
       ?? localStorage.getItem(`${LEGACY_STORAGE_PREFIX}${key}`);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw);
+
     if (key === 'users' && Array.isArray(parsed)) {
       return parsed.map((user) => ({ ...user, username: demoCodeByUserId[user.id] || user.username }));
     }
+
+    if (key === 'assets' && Array.isArray(parsed)) {
+      return parsed.map(normalizePolicyAsset);
+    }
+
+    // Migrasi ringan agar data localStorage lama tetap bisa dibaca oleh State Machine.
+    if (key === 'sensors' && Array.isArray(parsed)) {
+      return parsed.map((sensor) => {
+        const lifecycleStatus = sensorLifecycleStatus(sensor);
+        return {
+          ...sensor,
+          lifecycleStatus,
+          online: lifecycleStatus === 'Aktif/Online',
+          lifecycleClosed: Boolean(sensor.lifecycleClosed),
+        };
+      });
+    }
+
+    if (key === 'recommendations' && Array.isArray(parsed)) {
+      return parsed.map((recommendation) => {
+        const lifecycleStatus = recommendationLifecycleFromLegacy(recommendation);
+        return {
+          ...recommendation,
+          lifecycleStatus,
+          status: recommendation.status || recommendationBusinessStatus(lifecycleStatus),
+        };
+      });
+    }
+
+    if (key === 'claims' && Array.isArray(parsed)) {
+      return parsed.map((claim) => ({
+        ...claim,
+        assessmentStatus: claimAssessmentLifecycleFromLegacy(claim),
+      }));
+    }
+
     return parsed;
   } catch {
     return fallback;
@@ -360,14 +500,14 @@ function HomePage({ user, assets, sensors, alerts, assignments, recommendations,
         <div className="progress-track"><i style={{ width: `${(sensors.filter((s) => s.online).length / Math.max(sensors.length, 1)) * 100}%` }} /></div>
       </Card>
       <Card title="Rekomendasi mitigasi" subtitle="Tindak lanjut dari Risk Engineering." action={<Button onClick={() => onNavigate('UC-09')}>Buka modul <ArrowRight size={14} /></Button>}>
-        {recommendations.filter((r) => r.status !== 'Selesai').slice(0, 3).map((r) => <div className="simple-row" key={r.id}><span className="simple-icon"><Shield size={15} /></span><span><b>{r.title}</b><small>{assetById(assets, r.assetId)?.name || r.assetId}</small></span><Status tone="warning">{r.status}</Status></div>)}
-        {!recommendations.some((r) => r.status !== 'Selesai') && <Empty title="Tidak ada rekomendasi aktif" description="Rekomendasi mitigasi yang ditetapkan akan muncul di sini." />}
+        {recommendations.filter((r) => (r.lifecycleStatus || recommendationLifecycleFromLegacy(r)) !== 'Terverifikasi').slice(0, 3).map((r) => <div className="simple-row" key={r.id}><span className="simple-icon"><Shield size={15} /></span><span><b>{r.title}</b><small>{assetById(assets, r.assetId)?.name || r.assetId}</small></span><Status tone="warning">{r.lifecycleStatus || recommendationLifecycleFromLegacy(r)}</Status></div>)}
+        {!recommendations.some((r) => (r.lifecycleStatus || recommendationLifecycleFromLegacy(r)) !== 'Terverifikasi') && <Empty title="Tidak ada rekomendasi aktif" description="Rekomendasi mitigasi yang ditetapkan akan muncul di sini." />}
       </Card>
     </div>
   </>;
 }
 
-function UC01Page({ assets, sensors, users, onSaveAsset, onUploadDataset, datasetLogs, onSyncCore }) {
+function UC01Page({ assets, sensors, users, decisions, onSaveAsset, onUploadDataset, datasetLogs, onSyncCore, onSubmitPolicy, onTransitionPolicy, onConfirmPolicyPremiumPaid }) {
   const insuredUsers = (users || []).filter((u, index, list) => {
     const insuredId = String(u.insuredId || '').trim();
     return u.role === 'insured' && u.active !== false && insuredId &&
@@ -377,6 +517,7 @@ function UC01Page({ assets, sensors, users, onSaveAsset, onUploadDataset, datase
   const [line, setLine] = useState('Semua');
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [detailAssetId, setDetailAssetId] = useState('');
   const [datasetName, setDatasetName] = useState('');
   const [geoChecked, setGeoChecked] = useState(false);
   const [geoAttempted, setGeoAttempted] = useState(false);
@@ -385,6 +526,10 @@ function UC01Page({ assets, sensors, users, onSaveAsset, onUploadDataset, datase
 );
   const [form, setForm] = useState({ name:'', policyNo:'', insured:'', insuredId:'', productLine:'Property', province:'Jawa Barat', city:'', address:'', sumInsured:'', sensorId:'', latitude:'', longitude:'', notes:'' });
   const filtered = assets.filter((a) => (line === 'Semua' || a.productLine === line) && `${a.name} ${a.policyNo} ${a.insured} ${a.province}`.toLowerCase().includes(search.toLowerCase()));
+  const detailAsset = assets.find((asset) => asset.id === detailAssetId) || null;
+  const detailPolicyStatus = policyStatusOf(detailAsset);
+  const detailDecision = decisions?.find((item) => item.assetId === detailAsset?.id && ['Diterima', 'Ditolak', 'Moratorium', 'Perlu Assessment'].includes(item.kind));
+  const detailStatusHistory = Array.isArray(detailAsset?.policyStatusHistory) ? detailAsset.policyStatusHistory.slice().reverse() : [];
   const openEdit = (asset = null) => {
     setEditing(asset);
     setGeoChecked(Boolean(asset?.locationVerified));
@@ -432,8 +577,12 @@ function UC01Page({ assets, sensors, users, onSaveAsset, onUploadDataset, datase
 
     const hasManualCoordinates = hasLatitude && hasLongitude;
 
+    const cleanForm = { ...form };
+    // Hapus field status lama agar tidak tercampur dengan lifecycle Polis.
+    delete cleanForm.status;
+
     onSaveAsset({
-      ...form,
+      ...cleanForm,
       id: editing?.id || idFor('AST'),
 
       // Koordinat boleh kosong.
@@ -447,8 +596,19 @@ function UC01Page({ assets, sensors, users, onSaveAsset, onUploadDataset, datase
 
       sumInsured: parseThousands(form.sumInsured),
 
+      // Verifikasi lokasi tetap menjadi atribut lokasi, bukan status lifecycle Polis.
       locationVerified: geoChecked,
-      status: geoChecked ? 'Aktif' : 'Perlu Verifikasi',
+      policyStatus: editing ? policyStatusOf(editing) : 'Draft',
+      policyStatusHistory: editing
+        ? (editing.policyStatusHistory || [])
+        : [{
+            id: idFor('PHS'),
+            from: null,
+            to: 'Draft',
+            event: 'Polis dibuat',
+            actor: 'Risk Engineering',
+            at: stamp(),
+          }],
 
       riskScore: editing?.riskScore ?? 45,
       hazardBase: editing?.hazardBase ?? 48,
@@ -551,7 +711,23 @@ function UC01Page({ assets, sensors, users, onSaveAsset, onUploadDataset, datase
     <Card title="Daftar objek pertanggungan" subtitle="Satu nomor polis dapat memiliki lebih dari satu lokasi objek.">
       <div className="toolbar-row"><div className="search-control"><Search size={16} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari objek, polis, tertanggung, wilayah..." /></div><select className="toolbar-select" value={line} onChange={(e) => setLine(e.target.value)}><option>Semua</option>{['Property','Engineering','Energy Onshore','Energy Offshore'].map((x) => <option key={x}>{x}</option>)}</select><Button onClick={() => exportCsv('data-objek-jasindo.csv', filtered.map(({ id,name,policyNo,insured,productLine,province,city,sumInsured,riskScore,locationVerified }) => ({id,name,policyNo,insured,productLine,province,city,sumInsured,riskScore,locationVerified}))) }><Download size={14} /> Ekspor CSV</Button></div>
       <DataTable columns={['Objek / Polis','Tertanggung','Lini Produk','Lokasi','Nilai Pertanggungan','Status Lokasi','Aksi']}>
-        {filtered.map((a) => <tr key={a.id}><td><b>{a.name}</b><small className="cell-sub">{a.id} · {a.policyNo}</small></td><td>{a.insured}</td><td>{a.productLine}</td><td>{a.city}, {a.province}<small className="cell-sub">{a.address}</small></td><td>{compactMoney(a.sumInsured)}</td><td><Status tone={a.locationVerified ? 'success' : 'warning'} dot>{a.locationVerified ? 'Terverifikasi' : 'Perlu Verifikasi'}</Status></td><td><Button size="small" onClick={() => openEdit(a)}><Pencil size={13} /> Ubah</Button></td></tr>)}
+        {filtered.map((a) => <tr key={a.id}>
+          <td>
+            <button
+              type="button"
+              onClick={() => setDetailAssetId(a.id)}
+              title="Lihat detail objek dan status polis"
+              style={{ background:'transparent', border:0, padding:0, color:'inherit', font:'inherit', fontWeight:700, textAlign:'left', cursor:'pointer' }}
+            >{a.name}</button>
+            <small className="cell-sub">{a.id} · {a.policyNo}</small>
+          </td>
+          <td>{a.insured}</td>
+          <td>{a.productLine}</td>
+          <td>{a.city}, {a.province}<small className="cell-sub">{a.address}</small></td>
+          <td>{compactMoney(a.sumInsured)}</td>
+          <td><Status tone={a.locationVerified ? 'success' : 'warning'} dot>{a.locationVerified ? 'Terverifikasi' : 'Perlu Verifikasi'}</Status></td>
+          <td><Button size="small" onClick={() => openEdit(a)}><Pencil size={13} /> Ubah</Button></td>
+        </tr>)}
       </DataTable>
       {!filtered.length && <Empty title="Objek tidak ditemukan" description="Ubah kata kunci atau filter lini produk." />}
     </Card>
@@ -732,6 +908,63 @@ function UC01Page({ assets, sensors, users, onSaveAsset, onUploadDataset, datase
   </div>
       <div className="modal-actions"><Button onClick={() => setModal(false)}>Batal</Button><Button variant="primary" type="submit">Simpan objek</Button></div>
     </form></Modal>}
+
+    {detailAsset && <Modal
+      title={detailAsset.name}
+      subtitle="Detail objek pertanggungan dan lifecycle polis"
+      onClose={() => setDetailAssetId('')}
+      size="large"
+    >
+      <div className="two-col-grid">
+        <Card title="Identitas objek" subtitle="Identitas objek dan polis yang terkait.">
+          <div className="detail-pair"><span>ID Objek</span><b>{detailAsset.id}</b></div>
+          <div className="detail-pair"><span>Nomor Polis</span><b>{detailAsset.policyNo || '-'}</b></div>
+          <div className="detail-pair"><span>Tertanggung</span><b>{detailAsset.insured || '-'}</b></div>
+          <div className="detail-pair"><span>ID Tertanggung</span><b>{detailAsset.insuredId || '-'}</b></div>
+          <div className="detail-pair"><span>Lini Produk</span><b>{detailAsset.productLine || '-'}</b></div>
+          <div className="detail-pair"><span>Lokasi</span><b>{[detailAsset.city, detailAsset.province].filter(Boolean).join(', ') || '-'}</b></div>
+          <div className="detail-pair"><span>Nilai Pertanggungan</span><b>{compactMoney(detailAsset.sumInsured)}</b></div>
+        </Card>
+        <Card title="Status objek dan polis" subtitle="Status lokasi tidak menentukan lifecycle Polis.">
+          <div className="detail-pair"><span>Status Polis</span><Status tone={policyStatusTone(detailPolicyStatus)} dot>{detailPolicyStatus}</Status></div>
+          <div className="detail-pair"><span>Status Lokasi</span><Status tone={detailAsset.locationVerified ? 'success' : 'warning'} dot>{detailAsset.locationVerified ? 'Terverifikasi' : 'Perlu Verifikasi'}</Status></div>
+          {detailDecision && <div className="detail-pair"><span>Keputusan UW terakhir</span><b>{detailDecision.kind}</b></div>}
+          {detailDecision?.kind === 'Diterima' && detailPolicyStatus === 'Pending Underwriting' && <div className="note-box"><CheckCircle2 size={15} /><span>Underwriter sudah menyetujui pengajuan. Polis menunggu konfirmasi premi lunas sebelum berubah menjadi Aktif.</span></div>}
+          {['Moratorium', 'Perlu Assessment'].includes(detailDecision?.kind) && <div className="note-box"><AlertCircle size={15} /><span>Keputusan ini dicatat sebagai keputusan underwriting, bukan status lifecycle. Polis tetap Pending Underwriting.</span></div>}
+        </Card>
+      </div>
+
+      <Card title="Aksi lifecycle Polis" >
+        {detailPolicyStatus === 'Draft' && <div className="card-actions"><Button variant="primary" onClick={() => onSubmitPolicy(detailAsset.id)}><Send size={14} /> Ajukan Polis</Button><small className="muted">Pengajuan mengubah status Draft menjadi Pending Underwriting.</small></div>}
+
+        {detailPolicyStatus === 'Pending Underwriting' && detailDecision?.kind === 'Diterima' && <div className="card-actions"><Button variant="primary" onClick={() => onConfirmPolicyPremiumPaid(detailAsset.id)}><CheckCircle2 size={14} /> Konfirmasi premi lunas & aktifkan</Button><small className="muted">Status menjadi Aktif setelah keputusan Diterima dan premi dikonfirmasi lunas.</small></div>}
+
+        {detailPolicyStatus === 'Pending Underwriting' && detailDecision?.kind !== 'Diterima' && <div className="note-box"><Clock3 size={15} /><span>{detailDecision ? `Keputusan ${detailDecision.kind} sudah dicatat. Status Polis tetap Pending Underwriting.` : 'Menunggu keputusan Underwriter melalui UC-05. Pilihan Terima, Tolak, Moratorium, dan Minta assessment tetap dilakukan di sana.'}</span></div>}
+
+        {detailPolicyStatus === 'Aktif' && <div className="card-actions">
+          <Button size="small" onClick={() => onTransitionPolicy(detailAsset.id, 'Grace Period', 'Jatuh tempo premi')}><Clock3 size={13} /> Jatuh tempo premi</Button>
+          <Button size="small" onClick={() => onTransitionPolicy(detailAsset.id, 'Expired', 'Masa berlaku berakhir')}><History size={13} /> Masa berlaku berakhir</Button>
+          <Button size="small" onClick={() => onTransitionPolicy(detailAsset.id, 'Cancelled', 'Pembatalan polis')}><X size={13} /> Pembatalan polis</Button>
+        </div>}
+
+        {detailPolicyStatus === 'Grace Period' && <div className="card-actions">
+          <Button size="small" variant="primary" onClick={() => onTransitionPolicy(detailAsset.id, 'Aktif', 'Tunggakan dibayar')}><CheckCircle2 size={13} /> Tunggakan dibayar</Button>
+          <Button size="small" onClick={() => onTransitionPolicy(detailAsset.id, 'Lapsed', 'Batas waktu habis')}><Clock3 size={13} /> Batas waktu habis</Button>
+        </div>}
+
+        {['Ditolak', 'Lapsed', 'Expired', 'Cancelled'].includes(detailPolicyStatus) && <div className="note-box"><LockKeyhole size={15} /><span>Status ini merupakan akhir siklus pada diagram. Tidak ada transisi lanjutan yang didefinisikan.</span></div>}
+      </Card>
+
+      <Card title="Riwayat perubahan status" subtitle="Catatan perubahan lifecycle polis, terpisah dari decisions[] dan verifikasi lokasi.">
+        {detailStatusHistory.length ? detailStatusHistory.map((entry, index) => <div className="simple-row" key={entry.id || `${entry.to}-${entry.at}-${index}`}>
+          <span className="simple-icon"><History size={15} /></span>
+          <span>
+            <b>{entry.from ? `${entry.from} → ${entry.to}` : entry.to}</b>
+            <small>{entry.event || 'Perubahan status'} · {entry.actor || 'System'} · {entry.at || '-'}</small>
+          </span>
+        </div>) : <Empty title="Belum ada riwayat perubahan" description="Riwayat akan tercatat setiap kali status Polis berpindah." />}
+      </Card>
+    </Modal>}
   </>;
 }
 
@@ -1138,7 +1371,7 @@ function UC05Page({
             const survey = (assignments || []).filter((task) => task.kind === 'survey' && task.assetId === asset.id && ['Dikirim', 'Final', 'Verified', 'Revisi'].includes(task.status)).slice(0, 1)[0];
             const recommendation = (recommendations || []).find((item) => item.assetId === asset.id);
             const report = (rapor || []).find((item) => item.assetId === asset.id);
-            return <tr key={asset.id}><td><b>{asset.name}</b><small className="cell-sub">{asset.policyNo}</small></td><td>{survey ? <><Status tone={survey.status === 'Final' || survey.status === 'Verified' ? 'success' : 'warning'}>{survey.status}</Status><small className="cell-sub">{survey.findings || 'Menunggu catatan temuan lengkap'}</small></> : <span className="muted">Belum tersedia</span>}</td><td>{recommendation ? <><b>{recommendation.title}</b><small className="cell-sub">{recommendation.status} · Prioritas {recommendation.priority || '-'}</small></> : <span className="muted">Belum tersedia</span>}</td><td>{report ? <small>{report.text}</small> : <span className="muted">Belum ada rapor mitigasi</span>}</td></tr>;
+            return <tr key={asset.id}><td><b>{asset.name}</b><small className="cell-sub">{asset.policyNo}</small></td><td>{survey ? <><Status tone={survey.status === 'Final' || survey.status === 'Verified' ? 'success' : 'warning'}>{survey.status}</Status><small className="cell-sub">{survey.findings || 'Menunggu catatan temuan lengkap'}</small></> : <span className="muted">Belum tersedia</span>}</td><td>{recommendation ? <><b>{recommendation.title}</b><small className="cell-sub">{recommendationLifecycleFromLegacy(recommendation)} · Prioritas {recommendation.priority || '-'}</small></> : <span className="muted">Belum tersedia</span>}</td><td>{report ? <small>{report.text}</small> : <span className="muted">Belum ada rapor mitigasi</span>}</td></tr>;
           })}
         </DataTable>
       </Card>
@@ -1148,7 +1381,38 @@ function UC05Page({
       </Card>
       {user.role === 'underwriter' && <Card title="Rekomendasi akseptasi" subtitle="Catat keputusan beserta alasan untuk setiap pengajuan yang ditinjau.">
         <DataTable columns={['Objek / Polis', 'Risk Score', 'Exposure wilayah', 'Rekomendasi sistem', 'Keputusan Underwriter']}>
-          {assets.map((asset) => { const isMoratorium = Boolean(activeEventProvince && [activeEventProvince, ...(provinceNeighbours[activeEventProvince] || [])].includes(asset.province)); const decision = decisions.find((item) => item.assetId === asset.id); return <tr key={asset.id}><td><b>{asset.name}</b><small className="cell-sub">{asset.policyNo}</small></td><td><Status tone={riskTone(asset.riskScore)}>{asset.riskScore} · {riskBand(asset.riskScore)}</Status></td><td>{compactMoney(asset.sumInsured)}</td><td>{isMoratorium ? <Status tone="danger">Moratorium</Status> : asset.riskScore >= 70 ? <Status tone="warning">Perlu assessment</Status> : <Status tone="success">Dapat dipertimbangkan</Status>}</td><td><div className="decision-cell"><input value={decisionNote[asset.id] ?? decision?.note ?? ''} onChange={(e) => setDecisionNote({ ...decisionNote, [asset.id]:e.target.value })} placeholder="Alasan keputusan" /><select value={decision?.kind || ''} onChange={(e) => makeDecision(asset.id, e.target.value)}><option value="">Pilih keputusan</option><option value="Diterima" disabled={isMoratorium}>Terima</option><option value="Ditolak">Tolak</option><option value="Moratorium">Moratorium</option><option value="Perlu Assessment">Minta assessment</option></select></div>{decision && <small className="cell-sub">Tercatat: {decision.kind}</small>}</td></tr>; })}
+          {assets.map((asset) => {
+            const isMoratorium = Boolean(activeEventProvince && [activeEventProvince, ...(provinceNeighbours[activeEventProvince] || [])].includes(asset.province));
+            const decision = decisions.find((item) => item.assetId === asset.id && ['Diterima', 'Ditolak', 'Moratorium', 'Perlu Assessment'].includes(item.kind));
+            const currentPolicyStatus = policyStatusOf(asset);
+            const canDecide = currentPolicyStatus === 'Pending Underwriting' && decision?.kind !== 'Diterima';
+            return <tr key={asset.id}>
+              <td><b>{asset.name}</b><small className="cell-sub">{asset.policyNo} · {currentPolicyStatus}</small></td>
+              <td><Status tone={riskTone(asset.riskScore)}>{asset.riskScore} · {riskBand(asset.riskScore)}</Status></td>
+              <td>{compactMoney(asset.sumInsured)}</td>
+              <td>{isMoratorium ? <Status tone="danger">Moratorium</Status> : asset.riskScore >= 70 ? <Status tone="warning">Perlu assessment</Status> : <Status tone="success">Dapat dipertimbangkan</Status>}</td>
+              <td>
+                <div className="decision-cell">
+                  <input
+                    value={decisionNote[asset.id] ?? decision?.note ?? ''}
+                    onChange={(e) => setDecisionNote({ ...decisionNote, [asset.id]:e.target.value })}
+                    placeholder={canDecide ? 'Alasan keputusan' : 'Menunggu pengajuan / tindak lanjut'}
+                    disabled={!canDecide}
+                  />
+                  <select value={decision?.kind || ''} onChange={(e) => makeDecision(asset.id, e.target.value)} disabled={!canDecide}>
+                    <option value="">Pilih keputusan</option>
+                    <option value="Diterima" disabled={isMoratorium}>Terima</option>
+                    <option value="Ditolak">Tolak</option>
+                    <option value="Moratorium">Moratorium</option>
+                    <option value="Perlu Assessment">Minta assessment</option>
+                  </select>
+                </div>
+                {decision && <small className="cell-sub">Tercatat: {decision.kind}</small>}
+                {!canDecide && currentPolicyStatus !== 'Pending Underwriting' && <small className="cell-sub">Keputusan UW tersedia setelah polis diajukan.</small>}
+                {!canDecide && currentPolicyStatus === 'Pending Underwriting' && decision?.kind === 'Diterima' && <small className="cell-sub">Menunggu konfirmasi premi lunas pada detail objek.</small>}
+              </td>
+            </tr>;
+          })}
         </DataTable>
       </Card>}
       {user.role === 'risk' && <Card title="Penetapan prioritas" subtitle="Daftar ini menjadi acuan UC-03, UC-08, dan UC-09."><div className="priority-actions">{risky.map((asset) => <div key={asset.id}><span><b>{asset.name}</b><small>{asset.province} · Risk score {asset.riskScore}</small></span><Button size="small" onClick={() => onDecision(asset.id, 'Prioritas Assessment', 'Prioritas ditetapkan oleh Risk Engineering.')}>Tandai prioritas</Button></div>)}</div></Card>}
@@ -1156,7 +1420,7 @@ function UC05Page({
   </>;
 }
 
-function UC06Page({ sensors, assets, thresholds, onToggleSensor, onUpdateThresholds, onRegisterSensor, onTestGateway, onInvalidTelemetry, gatewayStatus }) {
+function UC06Page({ sensors, assets, thresholds, onToggleSensor, onTransitionSensor, onReplaceSensor, onCloseSensor, onUpdateThresholds, onRegisterSensor, onTestGateway, onInvalidTelemetry, gatewayStatus }) {
   const [editingThresholds, setEditingThresholds] = useState(thresholds);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ area:'Jawa Barat', deviceType:'Water Level', name:'', assetId:'' });
@@ -1171,7 +1435,43 @@ function UC06Page({ sensors, assets, thresholds, onToggleSensor, onUpdateThresho
     </div>
     <Card title="Daftar perangkat sensor" subtitle="Perangkat dihubungkan dengan objek pertanggungan dan lokasi pemasangan.">
       <DataTable columns={['Sensor / Lokasi','Jenis perangkat','Objek terkait','Threshold','Status','Aksi']}>
-        {sensors.slice(0,45).map((s) => { const asset = assets.find((a) => sensorForAsset(sensors, a)?.id === s.id); return <tr key={s.id}><td><b>{s.id.toUpperCase()}</b><small className="cell-sub">{s.area} · {s.name}</small></td><td>{s.deviceType || 'Multi-hazard node'}</td><td>{asset?.name || <span className="muted">Belum dikaitkan</span>}</td><td>Air {thresholds.water} m · MMI {thresholds.mmi}</td><td><Status tone={s.online ? 'success' : 'warning'} dot>{s.online ? 'Aktif' : 'Tidak aktif'}</Status>{s.pendingSync && <small className="cell-sub">Menunggu sinkronisasi UC-05</small>}{s.dataStatus === 'Tidak Valid' && <small className="cell-sub">Payload tidak valid</small>}</td><td><div className="row-actions"><Button size="small" onClick={() => onToggleSensor(s.id)}>{s.online ? 'Matikan' : 'Aktifkan'}</Button><Button size="small" onClick={() => onInvalidTelemetry(s.id)}>Uji data invalid</Button></div></td></tr>; })}
+        {sensors.slice(0,45).map((s) => {
+          const lifecycle = sensorLifecycleStatus(s);
+          const asset = assets.find((a) => a.sensorId === s.id || a.id === s.linkedAssetId);
+          const pendingAsset = assets.find((a) => a.id === s.pendingAssetId);
+          return <tr key={s.id}>
+            <td><b>{s.id.toUpperCase()}</b><small className="cell-sub">{s.area} · {s.name}</small></td>
+            <td>{s.deviceType || 'Multi-hazard node'}</td>
+            <td>{asset?.name || (pendingAsset ? `Menunggu pengaitan: ${pendingAsset.name}` : <span className="muted">Belum dikaitkan</span>)}</td>
+            <td>Air {thresholds.water} m · MMI {thresholds.mmi}</td>
+            <td>
+              <Status tone={lifecycle === 'Aktif/Online' ? 'success' : ['Rusak','Dinonaktifkan'].includes(lifecycle) ? 'danger' : 'warning'} dot>{lifecycle}</Status>
+              {s.pendingSync && <small className="cell-sub">Menunggu sinkronisasi UC-05</small>}
+              {s.dataStatus === 'Tidak Valid' && <small className="cell-sub">Payload tidak valid</small>}
+              {s.lifecycleClosed && <small className="cell-sub">Siklus perangkat ditutup</small>}
+            </td>
+            <td>
+              <div className="row-actions">
+                {lifecycle === 'Terdaftar' && <Button size="small" disabled={!s.pendingAssetId} onClick={() => onTransitionSensor(s.id, 'Terpasang')}>Kaitkan ke Objek</Button>}
+                {lifecycle === 'Terpasang' && <Button size="small" onClick={() => onTransitionSensor(s.id, 'Aktif/Online')}>Uji Koneksi / Aktifkan</Button>}
+                {lifecycle === 'Aktif/Online' && <select className="toolbar-select" value="" onChange={(e) => { if (e.target.value) onTransitionSensor(s.id, e.target.value); }}>
+                  <option value="">Pilih kondisi alternatif</option>
+                  <option value="Terputus/Offline">Sinyal hilang · Terputus/Offline</option>
+                  <option value="Butuh Kalibrasi">Anomali data · Butuh Kalibrasi</option>
+                  <option value="Rusak">Kerusakan fisik · Rusak</option>
+                  <option value="Dinonaktifkan">Pelepasan sensor · Dinonaktifkan</option>
+                </select>}
+                {lifecycle === 'Terputus/Offline' && <Button size="small" onClick={() => onTransitionSensor(s.id, 'Aktif/Online')}>Koneksi Pulih</Button>}
+                {lifecycle === 'Butuh Kalibrasi' && <Button size="small" onClick={() => onTransitionSensor(s.id, 'Aktif/Online')}>Kalibrasi Selesai</Button>}
+                {lifecycle === 'Rusak' && !s.lifecycleClosed && <Button size="small" onClick={() => onReplaceSensor(s.id)}>Sensor Diganti</Button>}
+                {lifecycle === 'Rusak' && s.lifecycleClosed && <Status tone="neutral">Sensor pengganti dicatat</Status>}
+                {lifecycle === 'Dinonaktifkan' && !s.lifecycleClosed && <Button size="small" onClick={() => onCloseSensor(s.id)}>Sensor Ditutup</Button>}
+                {lifecycle === 'Dinonaktifkan' && s.lifecycleClosed && <Status tone="neutral">Siklus sensor ditutup</Status>}
+                <Button size="small" disabled={lifecycle !== 'Aktif/Online'} onClick={() => onInvalidTelemetry(s.id)}>Uji data invalid</Button>
+              </div>
+            </td>
+          </tr>;
+        })}
       </DataTable>
     </Card>
     {showForm && <Modal title="Registrasi perangkat sensor" subtitle="Daftarkan identitas sensor dan hubungkan ke objek pertanggungan." onClose={() => setShowForm(false)}><form className="form-stack" onSubmit={(e) => { e.preventDefault(); onRegisterSensor(form); setShowForm(false); }}><FormField label="Nama perangkat" required><input value={form.name} onChange={(e) => setForm({ ...form, name:e.target.value })} required /></FormField><FormField label="Provinsi"><select value={form.area} onChange={(e) => setForm({ ...form, area:e.target.value, assetId:'' })}>{initialSensors.map((s) => <option key={s.area}>{s.area}</option>)}</select></FormField><FormField label="Jenis sensor"><select value={form.deviceType} onChange={(e) => setForm({ ...form, deviceType:e.target.value })}>{['Water Level','Vibration','Temperature','Multi-hazard node'].map((x) => <option key={x}>{x}</option>)}</select></FormField>
@@ -1179,7 +1479,9 @@ function UC06Page({ sensors, assets, thresholds, onToggleSensor, onUpdateThresho
       <select
         value={form.assetId}
         onChange={(e) => setForm({ ...form, assetId: e.target.value })}
+        required
       >
+        <option value="">Pilih objek pertanggungan</option>
         {assetsInSelectedArea.map((a) => (
           <option key={a.id} value={a.id}>
             {a.name} · {a.province} · Risk {a.riskScore}
@@ -1191,7 +1493,7 @@ function UC06Page({ sensors, assets, thresholds, onToggleSensor, onUpdateThresho
   </>;
 }
 
-function UC07Page({ user, users, assets, claims, events, assignments, onCreateClaims, onAssessClaim, onAssignAdjuster, onSubmitAdjustment, onReviewAdjustment, onNavigate }) {
+function UC07Page({ user, users, assets, claims, events, assignments, onCreateClaims, onAssessClaim, onAssignAdjuster, onSubmitAdjustment, onReviewAdjustment, onFinalizeClaimAssessment, onReassessClaim, onNavigate }) {
   const [selectedEvent, setSelectedEvent] = useState(events[0]?.id || '');
   const [manualProvince, setManualProvince] = useState('Sumatera Barat');
   const [assessment, setAssessment] = useState({});
@@ -1209,11 +1511,45 @@ function UC07Page({ user, users, assets, claims, events, assignments, onCreateCl
     </Card>}
     <Card title={user.role === 'adjuster' ? 'Penugasan adjustment saya' : 'Daftar potensi klaim'} subtitle={user.role === 'adjuster' ? 'Adjuster hanya dapat mengakses aset yang ditugaskan kepadanya.' : 'Rentang estimasi awal digunakan sebagai dasar pencadangan klaim.'}>
       <DataTable columns={['Klaim / Objek','Event / Lokasi','Rentang estimasi kerugian','Status','Proses']}>
-        {visibleClaims.map((c) => { const asset = assetById(assets,c.assetId); const task = assignments.find((x) => x.kind === 'adjuster' && x.claimId === c.id); return <tr key={c.id}><td><b>{c.id}</b><small className="cell-sub">{asset?.name || c.assetId} · {asset?.policyNo}</small></td><td>{events.find((e) => e.id === c.eventId)?.name || c.province}<small className="cell-sub">{asset?.province}</small></td><td><b>{compactMoney(c.estimateLow)} - {compactMoney(c.estimateHigh)}</b>{c.assessed > 0 && <small className="cell-sub">Assessment: {money(c.assessed)}</small>}</td><td><Status tone={c.status === 'Selesai' ? 'success' : c.assignedAdjusterId ? 'info' : 'warning'}>{c.status}</Status></td><td>
-          {user.role === 'claim' && <div className="row-actions"><input className="small-inline-input" placeholder="Nilai assessment" type="number" value={assessment[c.id] ?? c.assessed ?? ''} onChange={(e) => setAssessment({ ...assessment, [c.id]:e.target.value })} /><Button size="small" onClick={() => onAssessClaim(c.id, Number(assessment[c.id] || c.estimateLow))}>Simpan assessment</Button><Button size="small" onClick={() => setAssigning(c)}>Tugaskan adjuster</Button></div>}
+        {visibleClaims.map((c) => { const asset = assetById(assets,c.assetId); const task = assignments.find((x) => x.kind === 'adjuster' && x.claimId === c.id); const assessmentLifecycle = claimAssessmentLifecycleFromLegacy(c); return <tr key={c.id}><td><b>{c.id}</b><small className="cell-sub">{asset?.name || c.assetId} · {asset?.policyNo}</small></td><td>{events.find((e) => e.id === c.eventId)?.name || c.province}<small className="cell-sub">{asset?.province}</small></td><td>
+            <b>{compactMoney(c.estimateLow)} - {compactMoney(c.estimateHigh)}</b>
+            {c.assessed > 0 && (
+              <small className="cell-sub">
+                {c.adjustmentStatus === 'Disetujui' ? 'Assessment final' : 'Assessment CO'}: {money(c.assessed)}
+              </small>
+            )}
+            {Number(c.adjustmentAmount) > 0 && c.adjustmentStatus !== 'Disetujui' && (
+              <small className="cell-sub">
+                Hasil adjustment ADJ{c.adjustmentStatus === 'Menunggu Review' ? ' · Menunggu review' : c.adjustmentStatus === 'Revisi' ? ' · Perlu revisi' : ''}: {money(c.adjustmentAmount)}
+              </small>
+            )}
+          </td><td><Status tone={assessmentLifecycle === 'Final' || assessmentLifecycle === 'Disetujui' ? 'success' : assessmentLifecycle === 'Menunggu Review' ? 'info' : assessmentLifecycle === 'Butuh Revisi' ? 'danger' : 'warning'}>{assessmentLifecycle}</Status></td><td>
+          {user.role === 'claim' && <div className="row-actions"><input
+                className="small-inline-input"
+                type="text"
+                inputMode="numeric"
+                placeholder="Nilai assessment (Rp)"
+                disabled={!['Inisiasi', 'Estimasi Awal'].includes(claimAssessmentLifecycleFromLegacy(c))}
+                value={formatThousands(assessment[c.id] ?? c.assessed ?? '')}
+                onChange={(e) =>
+                  setAssessment({
+                    ...assessment,
+                    [c.id]: e.target.value.replace(/\D/g, '')
+                  })
+                }
+              /><Button size="small" disabled={!['Inisiasi', 'Estimasi Awal'].includes(claimAssessmentLifecycleFromLegacy(c))} onClick={() => onAssessClaim(c.id, Number(assessment[c.id] || c.estimateLow))}>Simpan assessment</Button><Button size="small" disabled={claimAssessmentLifecycleFromLegacy(c) !== 'Estimasi Awal'} onClick={() => setAssigning(c)}>Tugaskan adjuster</Button></div>}
           {user.role === 'adjuster' && <div className="row-actions"><Button size="small" variant="primary" onClick={() => onNavigate('UC-08')}>Buka penugasan adjustment</Button></div>}
           {user.role === 'claim' && task && <small className="cell-sub">Adjuster: {users.find((u) => u.id === c.assignedAdjusterId)?.name}</small>}
-          {user.role === 'claim' && c.adjustmentStatus === 'Menunggu Review' && <div className="row-actions"><Button size="small" onClick={() => onReviewAdjustment(c.id,true)}>Terima adjustment</Button><Button size="small" onClick={() => onReviewAdjustment(c.id,false)}>Kembalikan</Button></div>}
+          {user.role === 'claim' && c.adjustmentStatus === 'Menunggu Review' && <div className="row-actions">
+            <Button size="small" variant="primary" onClick={() => onReviewAdjustment(c.id,true)}>Setujui adjustment</Button>
+            <select className="toolbar-select" value="" onChange={(e) => { if (e.target.value === 'Butuh Revisi') onReviewAdjustment(c.id,false); }}>
+              <option value="">Alternatif review</option>
+              <option value="Butuh Revisi">Butuh Revisi</option>
+            </select>
+          </div>}
+          {user.role === 'claim' && claimAssessmentLifecycleFromLegacy(c) === 'Disetujui' && <div className="row-actions"><Button size="small" variant="primary" onClick={() => onFinalizeClaimAssessment(c.id)}>Kunci nilai klaim</Button></div>}
+          {user.role === 'claim' && claimAssessmentLifecycleFromLegacy(c) === 'Butuh Revisi' && <div className="row-actions"><Button size="small" onClick={() => onReassessClaim(c.id)}>Reassess estimasi</Button></div>}
+          {user.role === 'claim' && claimAssessmentLifecycleFromLegacy(c) === 'Final' && <small className="cell-sub">Nilai klaim telah dikunci</small>}
         </td></tr>; })}
       </DataTable>
       {!visibleClaims.length && <Empty title="Belum ada klaim untuk akun ini" description="Penugasan klaim dari Claim Officer akan tampil di halaman ini." />}
@@ -1247,11 +1583,31 @@ function UC08Page({ user, users, assets, assignments, decisions, onCreateAssignm
     <div className="kpi-grid compact-kpis"><Kpi icon={ClipboardCheck} label="Total penugasan" value={visible.length} /><Kpi icon={Clock3} label="Sedang berjalan" value={visible.filter((a) => a.status === 'Sedang Disurvei').length} tone="orange" /><Kpi icon={FileCheck2} label="Menunggu review" value={visible.filter((a) => a.status === 'Dikirim').length} tone="purple" /><Kpi icon={CheckCircle2} label="Final" value={visible.filter((a) => a.status === 'Final').length} tone="green" /></div>
     {user.role === 'risk' && <Card title="Rekomendasi penugasan" subtitle={recommendedSurveyor ? `Sistem demo merekomendasikan ${recommendedSurveyor.name} berdasarkan cakupan wilayah dan keahlian.` : 'Belum ada akun surveyor aktif untuk menerima penugasan.'}><div className="recommended-user"><span className="avatar">BS</span><span><b>{recommendedSurveyor?.name || 'Belum ada surveyor aktif'}</b><small>Surveyor Eksternal · Property & Engineering</small></span><Status tone={recommendedSurveyor ? 'success' : 'warning'}>{recommendedSurveyor ? 'Direkomendasikan' : 'Perlu akun aktif'}</Status></div></Card>}
     <Card title={isExternal ? 'Daftar penugasan saya' : 'Daftar penugasan survei & adjuster'} subtitle={isExternal ? 'Akses terbatas hanya pada aset yang ditugaskan ke akun Anda.' : 'Risk Engineering mengelola survei risiko; Claim Officer dapat menugaskan adjuster dari UC-07.'}>
-      {visible.map((task) => { const asset = assetById(assets, task.assetId); const assigned = users.find((u) => u.id === task.assignedTo); return <article className="task-card" key={task.id}><div className="task-main"><div className="task-id">{task.kind === 'adjuster' ? 'ADJ' : 'SUR'} · {task.id}</div><h3>{asset?.name || task.assetId}</h3><p>{asset?.province} · {asset?.policyNo} · Tenggat {fmtDate(task.dueDate)}</p><div className="task-meta"><Status tone={task.status === 'Final' ? 'success' : task.status === 'Dikirim' ? 'info' : task.status === 'Revisi' ? 'danger' : 'warning'}>{task.status}</Status><span>Ditugaskan ke: {assigned?.name || '-'}</span></div></div>
+      {visible.map((task) => { const asset = assetById(assets, task.assetId); const assigned = users.find((u) => u.id === task.assignedTo); return <article className="task-card" key={task.id}><div className="task-main"><div className="task-id">{task.kind === 'adjuster' ? 'ADJ' : 'SUR'} · {task.id}</div><h3>{asset?.name || task.assetId}</h3><p>{asset?.province} · {asset?.policyNo} · Tenggat {fmtDate(task.dueDate)}</p><div className="task-meta"><Status tone={task.status === 'Final' ? 'success' : task.status === 'Dikirim' ? 'info' : task.status === 'Revisi' ? 'danger' : 'warning'}>{task.status}</Status><span>Ditugaskan ke: {assigned?.name || '-'}</span></div>
+          {user.role === 'claim' && task.kind === 'adjuster' && Number(task.adjustmentAmount) > 0 && (
+            <small className="cell-sub">
+              {task.status === 'Final' ? 'Nilai adjustment disetujui' : 'Nilai adjustment diajukan'}: {money(task.adjustmentAmount)}
+            </small>
+          )}
+        </div>
           <div className="task-actions">
             {user.role === 'surveyor' && task.kind === 'survey' && task.status === 'Ditugaskan' && <Button size="small" onClick={() => startTask(task)}>Mulai survei</Button>}
             {user.role === 'surveyor' && task.kind === 'survey' && ['Ditugaskan','Sedang Disurvei','Revisi'].includes(task.status) && <div className="task-submit"><select value={submissions[task.id]?.condition || task.condition || 'Baik'} onChange={(e) => setSubmissions({ ...submissions, [task.id]:{ ...(submissions[task.id] || {}), condition:e.target.value } })}><option>Baik</option><option>Perlu Perhatian</option><option>Buruk</option></select><textarea placeholder="Temuan dan kondisi objek" value={submissions[task.id]?.findings ?? task.findings ?? ''} onChange={(e) => setSubmissions({ ...submissions, [task.id]:{ ...(submissions[task.id] || {}), findings:e.target.value } })} /><input type="file" accept="image/*,.pdf" multiple onChange={(e) => setSubmissions({ ...submissions, [task.id]:{ ...(submissions[task.id] || {}), evidence:Array.from(e.target.files || []).map((f) => f.name) } })} /><Button size="small" variant="primary" onClick={() => onUpdateAssignment(task.id, { status:'Dikirim', condition:submissions[task.id]?.condition || task.condition || 'Baik', findings:submissions[task.id]?.findings || 'Hasil pemeriksaan lapangan telah diisi.', evidence:submissions[task.id]?.evidence?.length ? submissions[task.id].evidence : ['Evidence foto lapangan (mock)'], submittedAt:today() })}>Kirim hasil & evidence</Button></div>}
-            {user.role === 'adjuster' && task.kind === 'adjuster' && ['Ditugaskan','Sedang Disurvei','Revisi'].includes(task.status) && <div className="task-submit"><input type="number" placeholder="Nilai kerugian hasil adjustment" value={submissions[task.id]?.amount || ''} onChange={(e) => setSubmissions({ ...submissions, [task.id]:{ ...(submissions[task.id] || {}), amount:e.target.value } })} /><textarea placeholder="Catatan adjustment dan evidence" value={submissions[task.id]?.findings || ''} onChange={(e) => setSubmissions({ ...submissions, [task.id]:{ ...(submissions[task.id] || {}), findings:e.target.value } })} /><input type="file" accept="image/*,.pdf" multiple onChange={(e) => setSubmissions({ ...submissions, [task.id]:{ ...(submissions[task.id] || {}), evidence:Array.from(e.target.files || []).map((f) => f.name) } })} /><Button size="small" variant="primary" disabled={!submissions[task.id]?.amount} onClick={() => onUpdateAssignment(task.id, { status:'Dikirim', adjustmentAmount:Number(submissions[task.id].amount), findings:submissions[task.id].findings, evidence:submissions[task.id]?.evidence?.length ? submissions[task.id].evidence : ['Dokumen adjustment (mock)'], submittedAt:today() })}>Kirim adjustment</Button></div>}
+            {user.role === 'adjuster' && task.kind === 'adjuster' && ['Ditugaskan','Sedang Disurvei','Revisi'].includes(task.status) && <div className="task-submit"><input
+              type="text"
+              inputMode="numeric"
+              placeholder="Nilai kerugian hasil adjustment (Rp)"
+              value={formatThousands(submissions[task.id]?.amount ?? '')}
+              onChange={(e) =>
+                setSubmissions({
+                  ...submissions,
+                  [task.id]: {
+                    ...(submissions[task.id] || {}),
+                    amount: e.target.value.replace(/\D/g, '')
+                  }
+                })
+              }
+            /><textarea placeholder="Catatan adjustment dan evidence" value={submissions[task.id]?.findings || ''} onChange={(e) => setSubmissions({ ...submissions, [task.id]:{ ...(submissions[task.id] || {}), findings:e.target.value } })} /><input type="file" accept="image/*,.pdf" multiple onChange={(e) => setSubmissions({ ...submissions, [task.id]:{ ...(submissions[task.id] || {}), evidence:Array.from(e.target.files || []).map((f) => f.name) } })} /><Button size="small" variant="primary" disabled={!parseThousands(submissions[task.id]?.amount)} onClick={() => onUpdateAssignment(task.id, { status:'Dikirim', adjustmentAmount:parseThousands(submissions[task.id]?.amount), findings:submissions[task.id].findings, evidence:submissions[task.id]?.evidence?.length ? submissions[task.id].evidence : ['Dokumen adjustment (mock)'], submittedAt:today() })}>Kirim adjustment</Button></div>}
             {user.role === 'risk' && task.kind === 'survey' && task.status === 'Dikirim' && <><input className="small-inline-input" placeholder="Catatan review" value={revisionNotes[task.id] || ''} onChange={(e) => setRevisionNotes({ ...revisionNotes, [task.id]:e.target.value })} /><Button size="small" onClick={() => onUpdateAssignment(task.id, { status:'Final', reviewNote:'Hasil survei difinalisasi.' })}>Finalisasi</Button><Button size="small" onClick={() => onUpdateAssignment(task.id, { status:'Revisi', reviewNote:revisionNotes[task.id] || 'Mohon lengkapi evidence.' })}>Kembalikan</Button><Button size="small" onClick={() => onNavigate('UC-10')}>Verifikasi UC-10</Button></>}
             {user.role === 'claim' && task.kind === 'adjuster' && task.status === 'Dikirim' && <><Button size="small" onClick={() => onUpdateAssignment(task.id, { status:'Final', reviewNote:'Hasil adjustment disetujui oleh Claim Officer.' })}>Terima hasil</Button><Button size="small" onClick={() => onUpdateAssignment(task.id, { status:'Revisi', reviewNote:'Hasil adjustment perlu dilengkapi.' })}>Kembalikan</Button></>}
             {task.status === 'Final' && <Status tone="success">Akses penugasan ditutup</Status>}
@@ -1287,27 +1643,135 @@ function UC08Page({ user, users, assets, assignments, decisions, onCreateAssignm
 
 function UC09Page({ user, assets, recommendations, onCreateRecommendation, onUpdateRecommendation, rapor }) {
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ assetId:assets[0]?.id || '', standardId:recommendationLibrary[0].id, priority:'Tinggi', dueDate:'2026-11-12' });
+  const [form, setForm] = useState({
+    assetId:assets[0]?.id || '',
+    standardId:recommendationLibrary[0].id,
+    priority:'Tinggi',
+    dueDate:'2026-11-12'
+  });
   const [action, setAction] = useState({});
   const [review, setReview] = useState({});
   const ownIds = assets.filter((a) => a.insuredId === user.insuredId).map((a) => a.id);
-  const visible = user.role === 'insured' ? recommendations.filter((r) => ownIds.includes(r.assetId)) : recommendations;
+  const lifecycleOf = (recommendation) => recommendationLifecycleFromLegacy(recommendation);
+  const visible = user.role === 'insured'
+    ? recommendations.filter((r) => ownIds.includes(r.assetId) && lifecycleOf(r) !== 'Dibuat')
+    : recommendations;
+
   return <>
     <PageTitle eyebrow="UC-09 · SURVEI & MITIGASI RISIKO" title="Rekomendasi Mitigasi & Rapor Aset" description="Pilih rekomendasi standar, tetapkan prioritas dan tenggat, catat tindak lanjut tertanggung, lalu verifikasi penyelesaian." action={user.role === 'risk' && <Button variant="primary" onClick={() => setShowForm(true)}><Plus size={15} /> Buat rekomendasi</Button>} />
-    <div className="kpi-grid compact-kpis"><Kpi icon={Shield} label="Rekomendasi aktif" value={visible.filter((r) => r.status !== 'Selesai').length} /><Kpi icon={Clock3} label="Menunggu tindak lanjut" value={visible.filter((r) => r.status === 'Menunggu Tindak Lanjut').length} tone="orange" /><Kpi icon={FileCheck2} label="Menunggu verifikasi" value={visible.filter((r) => r.status === 'Menunggu Verifikasi').length} tone="purple" /><Kpi icon={CheckCircle2} label="Selesai" value={visible.filter((r) => r.status === 'Selesai').length} tone="green" /></div>
+    <div className="kpi-grid compact-kpis">
+      <Kpi icon={Shield} label="Rekomendasi aktif" value={visible.filter((r) => lifecycleOf(r) !== 'Terverifikasi').length} />
+      <Kpi icon={Clock3} label="Menunggu tindak lanjut" value={visible.filter((r) => ['Terkirim','Terlambat','Sedang Dikerjakan','Perlu Revisi'].includes(lifecycleOf(r))).length} tone="orange" />
+      <Kpi icon={FileCheck2} label="Menunggu verifikasi" value={visible.filter((r) => lifecycleOf(r) === 'Selesai Dilaporkan').length} tone="purple" />
+      <Kpi icon={CheckCircle2} label="Selesai" value={visible.filter((r) => lifecycleOf(r) === 'Terverifikasi').length} tone="green" />
+    </div>
     <Card title="Siklus rekomendasi mitigasi" subtitle="Rekomendasi bersumber dari library standar dan ditindaklanjuti oleh tertanggung.">
-      {visible.map((r) => { const asset = assetById(assets,r.assetId); const standard = recommendationLibrary.find((x) => x.id === r.standardId); return <article className="recommendation-card" key={r.id}><div className="recommendation-main"><div className="task-id">{r.id} · {standard?.category || 'Mitigasi'}</div><h3>{r.title}</h3><p>{asset?.name} · {asset?.province} · Prioritas {r.priority} · Tenggat {fmtDate(r.dueDate)}</p><small>{standard?.description}</small><Status tone={r.status === 'Selesai' ? 'success' : r.status === 'Menunggu Verifikasi' ? 'info' : r.status === 'Ditolak' ? 'danger' : 'warning'}>{r.status}</Status>{r.actionNote && <div className="alert-followup">Tindakan tertanggung: {r.actionNote}</div>}{r.reviewNote && <div className="alert-followup">Review: {r.reviewNote}</div>}</div><div className="recommendation-actions">
-        {user.role === 'insured' && r.status === 'Menunggu Tindak Lanjut' && <><textarea placeholder="Jelaskan tindakan perbaikan" value={action[r.id] ?? ''} onChange={(e) => setAction({ ...action, [r.id]:e.target.value })} /><Button size="small" variant="primary" disabled={!action[r.id]?.trim()} onClick={() => onUpdateRecommendation(r.id,{ status:'Menunggu Verifikasi', actionNote:action[r.id], evidence:['Foto perbaikan (mock)'] })}><Upload size={13} /> Kirim bukti perbaikan</Button></>}
-        {user.role === 'risk' && r.status === 'Menunggu Verifikasi' && <><textarea placeholder="Catatan verifikasi" value={review[r.id] || ''} onChange={(e) => setReview({ ...review, [r.id]:e.target.value })} /><Button size="small" onClick={() => onUpdateRecommendation(r.id,{ status:'Selesai', reviewNote:review[r.id] || 'Bukti perbaikan diterima.' })}><CheckCircle2 size={13} /> Verifikasi selesai</Button><Button size="small" onClick={() => onUpdateRecommendation(r.id,{ status:'Menunggu Tindak Lanjut', reviewNote:review[r.id] || 'Bukti perbaikan belum memadai.' })}>Minta perbaikan</Button></>}
-      </div></article>; })}
+      {visible.map((r) => {
+        const asset = assetById(assets,r.assetId);
+        const standard = recommendationLibrary.find((x) => x.id === r.standardId);
+        const lifecycle = lifecycleOf(r);
+        const lifecycleTone = lifecycle === 'Terverifikasi' ? 'success' : lifecycle === 'Selesai Dilaporkan' ? 'info' : lifecycle === 'Perlu Revisi' || lifecycle === 'Terlambat' ? 'danger' : 'warning';
+
+        return <article className="recommendation-card" key={r.id}>
+          <div className="recommendation-main">
+            <div className="task-id">{r.id} · {standard?.category || 'Mitigasi'}</div>
+            <h3>{r.title}</h3>
+            <p>{asset?.name} · {asset?.province} · Prioritas {r.priority} · Tenggat {fmtDate(r.dueDate)}</p>
+            <small>{standard?.description}</small>
+            <Status tone={lifecycleTone}>{lifecycle}</Status>
+            {r.actionNote && <div className="alert-followup">Tindakan tertanggung: {r.actionNote}</div>}
+            {r.reviewNote && <div className="alert-followup">Review: {r.reviewNote}</div>}
+          </div>
+
+          <div className="recommendation-actions">
+            {user.role === 'risk' && lifecycle === 'Dibuat' && (
+              <Button size="small" variant="primary" onClick={() => onUpdateRecommendation(r.id, { lifecycleStatus:'Terkirim' })}>
+                <Send size={13} /> Kirim ke Tertanggung
+              </Button>
+            )}
+
+            {user.role === 'risk' && lifecycle === 'Terkirim' && (
+              <select
+                className="toolbar-select"
+                value=""
+                onChange={(e) => { if (e.target.value) onUpdateRecommendation(r.id, { lifecycleStatus:e.target.value }); }}
+              >
+                <option value="">Kondisi alternatif</option>
+                <option value="Terlambat">Melewati target · Terlambat</option>
+              </select>
+            )}
+
+            {user.role === 'insured' && lifecycle === 'Terkirim' && (
+              <Button size="small" variant="primary" onClick={() => onUpdateRecommendation(r.id, { lifecycleStatus:'Sedang Dikerjakan' })}>
+                Mulai Tindak Lanjut
+              </Button>
+            )}
+
+            {user.role === 'insured' && lifecycle === 'Terlambat' && (
+              <Button size="small" variant="primary" onClick={() => onUpdateRecommendation(r.id, { lifecycleStatus:'Sedang Dikerjakan' })}>
+                Lanjut Perbaikan
+              </Button>
+            )}
+
+            {user.role === 'insured' && lifecycle === 'Perlu Revisi' && (
+              <Button size="small" variant="primary" onClick={() => onUpdateRecommendation(r.id, { lifecycleStatus:'Sedang Dikerjakan' })}>
+                Perbaikan Ulang
+              </Button>
+            )}
+
+            {user.role === 'insured' && lifecycle === 'Sedang Dikerjakan' && <>
+              <textarea placeholder="Jelaskan tindakan perbaikan" value={action[r.id] ?? ''} onChange={(e) => setAction({ ...action, [r.id]:e.target.value })} />
+              <Button size="small" variant="primary" disabled={!action[r.id]?.trim()} onClick={() => onUpdateRecommendation(r.id, { lifecycleStatus:'Selesai Dilaporkan', actionNote:action[r.id], evidence:['Foto perbaikan (mock)'] })}>
+                <Upload size={13} /> Kirim Bukti Perbaikan
+              </Button>
+            </>}
+
+            {user.role === 'risk' && lifecycle === 'Selesai Dilaporkan' && <>
+              <textarea placeholder="Catatan verifikasi" value={review[r.id] || ''} onChange={(e) => setReview({ ...review, [r.id]:e.target.value })} />
+              <select
+                className="toolbar-select"
+                value=""
+                onChange={(e) => {
+                  const nextStatus = e.target.value;
+                  if (!nextStatus) return;
+                  onUpdateRecommendation(r.id, {
+                    lifecycleStatus:nextStatus,
+                    reviewNote:review[r.id] || (nextStatus === 'Terverifikasi' ? 'Bukti perbaikan diterima.' : 'Bukti perbaikan belum memadai.')
+                  });
+                }}
+              >
+                <option value="">Keputusan verifikasi</option>
+                <option value="Terverifikasi">Verifikasi valid · Terverifikasi</option>
+                <option value="Perlu Revisi">Verifikasi ditolak · Perlu Revisi</option>
+              </select>
+            </>}
+          </div>
+        </article>;
+      })}
       {!visible.length && <Empty title="Belum ada rekomendasi" description="Rekomendasi dari Risk Engineering akan muncul di sini." />}
     </Card>
     <Card title="Rapor aset" subtitle="Ringkasan kondisi risiko dan riwayat mitigasi yang dapat menjadi input underwriting.">
       <DataTable columns={['Objek','Risk Score','Status mitigasi','Riwayat rapor']}>
-        {assets.filter((a) => user.role !== 'insured' || a.insuredId === user.insuredId).map((a) => <tr key={a.id}><td><b>{a.name}</b><small className="cell-sub">{a.province} · {a.policyNo}</small></td><td><Status tone={riskTone(a.riskScore)}>{a.riskScore} · {riskBand(a.riskScore)}</Status></td><td>{recommendations.filter((r) => r.assetId === a.id).map((r) => <div key={r.id}><Status tone={r.status === 'Selesai' ? 'success' : 'warning'}>{r.status}</Status></div>)}{!recommendations.some((r) => r.assetId === a.id) && 'Belum ada'}</td><td>{rapor.filter((r) => r.assetId === a.id).slice(-2).map((r) => <small key={r.id} className="history-line">{r.date} · {r.text}</small>)}</td></tr>)}
+        {assets.filter((a) => user.role !== 'insured' || a.insuredId === user.insuredId).map((a) => <tr key={a.id}>
+          <td><b>{a.name}</b><small className="cell-sub">{a.province} · {a.policyNo}</small></td>
+          <td><Status tone={riskTone(a.riskScore)}>{a.riskScore} · {riskBand(a.riskScore)}</Status></td>
+          <td>{recommendations.filter((r) => r.assetId === a.id).map((r) => {
+            const lifecycle = lifecycleOf(r);
+            return <div key={r.id}><Status tone={lifecycle === 'Terverifikasi' ? 'success' : lifecycle === 'Selesai Dilaporkan' ? 'info' : 'warning'}>{lifecycle}</Status></div>;
+          })}{!recommendations.some((r) => r.assetId === a.id) && 'Belum ada'}</td>
+          <td>{rapor.filter((r) => r.assetId === a.id).slice(-2).map((r) => <small key={r.id} className="history-line">{r.date} · {r.text}</small>)}</td>
+        </tr>)}
       </DataTable>
     </Card>
-    {showForm && <Modal title="Tetapkan rekomendasi mitigasi" subtitle="Pilih library standar, objek, prioritas, dan tenggat." onClose={() => setShowForm(false)}><form className="form-stack" onSubmit={(e) => { e.preventDefault(); const standard = recommendationLibrary.find((x) => x.id === form.standardId); onCreateRecommendation({ ...form, title:standard.title, ownerId:assetById(assets,form.assetId)?.insuredId }); setShowForm(false); }}><FormField label="Objek pertanggungan"><select value={form.assetId} onChange={(e) => setForm({ ...form, assetId:e.target.value })}>{assets.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></FormField><FormField label="Library rekomendasi"><select value={form.standardId} onChange={(e) => setForm({ ...form, standardId:e.target.value })}>{recommendationLibrary.map((r) => <option key={r.id} value={r.id}>{r.title} · {r.category}</option>)}</select></FormField><FormField label="Prioritas"><select value={form.priority} onChange={(e) => setForm({ ...form, priority:e.target.value })}><option>Tinggi</option><option>Menengah</option><option>Rendah</option></select></FormField><FormField label="Tenggat tindak lanjut"><input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate:e.target.value })} /></FormField><div className="modal-actions"><Button onClick={() => setShowForm(false)}>Batal</Button><Button variant="primary" type="submit">Tetapkan rekomendasi</Button></div></form></Modal>}
+    {showForm && <Modal title="Tetapkan rekomendasi mitigasi" subtitle="Pilih library standar, objek, prioritas, dan tenggat." onClose={() => setShowForm(false)}>
+      <form className="form-stack" onSubmit={(e) => { e.preventDefault(); const standard = recommendationLibrary.find((x) => x.id === form.standardId); onCreateRecommendation({ ...form, title:standard.title, ownerId:assetById(assets,form.assetId)?.insuredId }); setShowForm(false); }}>
+        <FormField label="Objek pertanggungan"><select value={form.assetId} onChange={(e) => setForm({ ...form, assetId:e.target.value })}>{assets.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></FormField>
+        <FormField label="Library rekomendasi"><select value={form.standardId} onChange={(e) => setForm({ ...form, standardId:e.target.value })}>{recommendationLibrary.map((r) => <option key={r.id} value={r.id}>{r.title} · {r.category}</option>)}</select></FormField>
+        <FormField label="Prioritas"><select value={form.priority} onChange={(e) => setForm({ ...form, priority:e.target.value })}><option>Tinggi</option><option>Menengah</option><option>Rendah</option></select></FormField>
+        <FormField label="Tenggat tindak lanjut"><input type="date" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate:e.target.value })} /></FormField>
+        <div className="modal-actions"><Button onClick={() => setShowForm(false)}>Batal</Button><Button variant="primary" type="submit">Tetapkan rekomendasi</Button></div>
+      </form>
+    </Modal>}
   </>;
 }
 
@@ -1396,13 +1860,20 @@ function App() {
   const [page, setPage] = useState('UC-05');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [assets, setAssets] = useDemoState('assets', initialAssets);
-  const [sensors, setSensors] = useDemoState('sensors', initialSensors.map((s) => ({ ...s, deviceType:'Multi-hazard node', telemetryAt:stamp(), history:[{ at:'2026-10-31 17:40', ...s.base }] })));
+  const [assets, setAssets] = useDemoState('assets', initialAssets.map(normalizePolicyAsset));
+  const [sensors, setSensors] = useDemoState('sensors', initialSensors.map((s) => ({
+    ...s,
+    lifecycleStatus:s.online ? 'Aktif/Online' : 'Terputus/Offline',
+    lifecycleClosed:false,
+    deviceType:'Multi-hazard node',
+    telemetryAt:stamp(),
+    history:[{ at:'2026-10-31 17:40', ...s.base }]
+  })));
   const [thresholds, setThresholds] = useDemoState('thresholds', initialThresholds);
   const [events, setEvents] = useDemoState('events', initialEvents);
-  const [claims, setClaims] = useDemoState('claims', initialClaims);
+  const [claims, setClaims] = useDemoState('claims', initialClaims.map((claim) => ({ ...claim, assessmentStatus:claimAssessmentLifecycleFromLegacy(claim) })));
   const [assignments, setAssignments] = useDemoState('assignments', initialAssignments);
-  const [recommendations, setRecommendations] = useDemoState('recommendations', initialRecommendations);
+  const [recommendations, setRecommendations] = useDemoState('recommendations', initialRecommendations.map((recommendation) => ({ ...recommendation, lifecycleStatus:recommendationLifecycleFromLegacy(recommendation) })));
   const [selfSurveys, setSelfSurveys] = useDemoState('self-surveys', initialSelfSurveys);
   const [integrations, setIntegrations] = useDemoState('integrations', initialIntegrations);
   const [audit, setAudit] = useDemoState('audit', initialAudit);
@@ -1716,7 +2187,71 @@ function App() {
     notify('Sinkronisasi selesai', `${validSensors.length} payload valid diproses, ${breached.length} melewati threshold, ${invalidSensors.length} ditolak, ${offlinePending.length} menunggu sensor kembali online. Hasil tersedia pada UC-03, UC-04, UC-05, dan UC-07.`, tone);
   };
 
-  const saveAsset = (asset) => { setAssets((prev) => { const exists = prev.some((x) => x.id === asset.id); return exists ? prev.map((x) => x.id === asset.id ? { ...x, ...asset } : x) : [...prev, asset]; }); log('Kelola objek pertanggungan', `${asset.name} (${asset.policyNo}) disimpan dengan status ${asset.status}.`); notify('Data objek tersimpan', `${asset.name} berhasil diperbarui.`); };
+  const saveAsset = (asset) => {
+    const preparedAsset = normalizePolicyAsset(asset);
+    setAssets((prev) => {
+      const exists = prev.some((x) => x.id === preparedAsset.id);
+      return exists
+        ? prev.map((x) => x.id === preparedAsset.id ? { ...x, ...preparedAsset } : x)
+        : [...prev, preparedAsset];
+    });
+    log('Kelola objek pertanggungan', `${preparedAsset.name} (${preparedAsset.policyNo}) disimpan. Status Polis: ${preparedAsset.policyStatus}; status lokasi: ${preparedAsset.locationVerified ? 'Terverifikasi' : 'Perlu Verifikasi'}.`);
+    notify('Data objek tersimpan', `${preparedAsset.name} berhasil diperbarui.`);
+  };
+
+  const transitionPolicyStatus = (assetId, nextStatus, eventLabel) => {
+    const asset = assetById(assets, assetId);
+    if (!asset) {
+      notify('Objek tidak ditemukan', 'Status Polis tidak dapat diperbarui.', 'error');
+      return false;
+    }
+
+    const currentStatus = policyStatusOf(asset);
+    const allowedNextStatuses = POLICY_TRANSITIONS[currentStatus] || [];
+    if (!allowedNextStatuses.includes(nextStatus)) {
+      notify('Transisi status tidak diizinkan', `Perpindahan ${currentStatus} ke ${nextStatus} tidak tersedia pada State Machine Objek Polis.`, 'error');
+      return false;
+    }
+
+    const at = stamp();
+    setAssets((prev) => prev.map((item) => item.id === assetId ? {
+      ...normalizePolicyAsset(item),
+      policyStatus: nextStatus,
+      policyStatusHistory: [
+        ...(Array.isArray(item.policyStatusHistory) ? item.policyStatusHistory : []),
+        {
+          id: idFor('PHS'),
+          from: currentStatus,
+          to: nextStatus,
+          event: eventLabel,
+          actor: user?.name || 'System',
+          at,
+        },
+      ],
+    } : item));
+
+    log('Lifecycle Polis', `${asset.name} (${asset.policyNo}): ${currentStatus} → ${nextStatus}. Pemicu: ${eventLabel}.`);
+    notify('Status Polis diperbarui', `${asset.name}: ${currentStatus} → ${nextStatus}.`);
+    return true;
+  };
+
+  const submitPolicy = (assetId) => {
+    const moved = transitionPolicyStatus(assetId, 'Pending Underwriting', 'Pengajuan polis');
+    if (moved) {
+      // Keputusan UW lama tidak boleh otomatis berlaku pada pengajuan baru.
+      setDecisions((prev) => prev.filter((item) => !(item.assetId === assetId && ['Diterima', 'Ditolak', 'Moratorium', 'Perlu Assessment'].includes(item.kind))));
+    }
+  };
+
+  const confirmPolicyPremiumPaid = (assetId) => {
+    const asset = assetById(assets, assetId);
+    const currentDecision = decisions.find((item) => item.assetId === assetId && item.kind === 'Diterima');
+    if (policyStatusOf(asset) !== 'Pending Underwriting' || !currentDecision) {
+      notify('Polis belum dapat diaktifkan', 'Pastikan Underwriter sudah memilih Terima dan status polis masih Pending Underwriting.', 'warning');
+      return;
+    }
+    transitionPolicyStatus(assetId, 'Aktif', 'Disetujui & premi lunas');
+  };
   const uploadDataset = (name) => { const ok = /\.(geojson|json|csv|zip)$/i.test(name); const entry = { id:idFor('GEO'), name, ok, detail:ok ? 'Format file diterima dan metadata dataset tersimpan (mock).' : 'Format file tidak didukung. Gunakan GeoJSON, JSON, CSV, atau ZIP.' }; setDatasetLogs((prev) => [entry, ...prev]); log('Validasi dataset geospasial', `${name}: ${ok ? 'valid' : 'ditolak'}.`); notify(ok ? 'Dataset tervalidasi' : 'Dataset ditolak', entry.detail, ok ? 'success' : 'error'); };
   const saveScore = (assetId, score, breakdown) => { const asset = assetById(assets, assetId); setAssets((prev) => prev.map((x) => x.id === assetId ? { ...x, riskScore:score, lastAssessment:today(), scoreHistory:[...(x.scoreHistory || []), { score, date:today(), breakdown }] } : x)); log('Risk scoring', `Risk score ${asset?.name} diperbarui menjadi ${score}.`); notify('Risk score diperbarui', `Skor baru ${asset?.name}: ${score}/100.`); };
   const createAlert = (asset, title, source = 'IoT / Sensor System') => { const alert = { id:idFor('ALT'), title, assetId:asset.id, province:asset.province, source, status:'Belum Dibaca', acknowledged:false, escalated:false, channel:'In-app + email (mock)', createdAt:stamp(), followup:'' }; setAlerts((prev) => [alert, ...prev]); setEvents((prev) => [{ id:idFor('EVT'), name:title, type:source.includes('IoT') ? 'Sensor' : 'Bencana', province:asset.province, source, occurredAt:stamp(), severity:'Tinggi', status:'Dipantau', impactedAssetIds:[asset.id], note:'Dihasilkan dari simulasi telemetry.' }, ...prev]); const result = getAssetScore({ ...asset, hazardBase:Math.min(100,(asset.hazardBase || 40) + 8) }, sensors); setAssets((prev) => prev.map((x) => x.id === asset.id ? { ...x, riskScore:result.score, lastAssessment:today() } : x)); log('Early warning dibentuk', `${title} untuk ${asset.name}.`); notify('Early warning terkirim', `${asset.name} masuk daftar alert.`, 'warning'); };
@@ -1786,8 +2321,118 @@ function App() {
     );
   };
 
-  const toggleSensor = (id) => { setSensors((prev) => prev.map((s) => s.id === id ? { ...s, online:!s.online, telemetryAt:stamp() } : s)); const sensor = sensors.find((s) => s.id === id); log('Status perangkat IoT', `${sensor?.area} diubah menjadi ${sensor?.online ? 'offline' : 'online'}.`); notify('Status sensor diperbarui', `${sensor?.area} sekarang ${sensor?.online ? 'offline' : 'online'}.`, sensor?.online ? 'warning' : 'success'); };
-  const invalidTelemetry = (id) => { const sensor = sensors.find((s) => s.id === id); if (!sensor) return; setSensors((prev) => prev.map((s) => s.id === id ? { ...s, dataStatus:'Tidak Valid', pendingSync:true, lastValidation:'Payload di luar rentang parameter (simulasi).' } : s)); log('Validasi data sensor', `${sensor.area}: payload ditolak karena tidak sesuai format/rentang.`); notify('Data sensor ditolak', 'Payload tidak valid dicatat dan tidak digunakan dalam perhitungan monitoring.', 'error'); };
+  const toggleSensor = (id) => {
+    const sensor = sensors.find((item) => item.id === id);
+    if (!sensor) return;
+    const lifecycle = sensorLifecycleStatus(sensor);
+
+    if (lifecycle === 'Aktif/Online') {
+      setSensors((prev) => prev.map((item) => item.id === id ? { ...item, online:false, lifecycleStatus:'Terputus/Offline', telemetryAt:stamp() } : item));
+      log('Status perangkat IoT', `${sensor.area}: sinyal terputus.`);
+      notify('Sensor terputus', `${sensor.area} berubah menjadi Terputus/Offline.`, 'warning');
+      return;
+    }
+
+    if (lifecycle === 'Terputus/Offline') {
+      if (!gatewayStatus) {
+        notify('Gateway terputus', 'Pulihkan koneksi gateway sebelum mengaktifkan sensor.', 'error');
+        return;
+      }
+      setSensors((prev) => prev.map((item) => item.id === id ? { ...item, online:true, lifecycleStatus:'Aktif/Online', telemetryAt:stamp() } : item));
+      log('Status perangkat IoT', `${sensor.area}: koneksi pulih.`);
+      notify('Koneksi sensor pulih', `${sensor.area} kembali Aktif/Online.`, 'success');
+      return;
+    }
+
+    notify('Transisi tidak tersedia', `Sensor berstatus ${lifecycle}. Gunakan aksi lifecycle yang sesuai pada UC-06.`, 'warning');
+  };
+
+  const transitionSensor = (id, nextStatus) => {
+    const sensor = sensors.find((item) => item.id === id);
+    if (!sensor) return;
+    const currentStatus = sensorLifecycleStatus(sensor);
+
+    if (nextStatus === 'Terpasang') {
+      if (currentStatus !== 'Terdaftar') return;
+      const asset = assetById(assets, sensor.pendingAssetId);
+      if (!asset) {
+        notify('Objek belum dipilih', 'Pilih objek pertanggungan saat registrasi sebelum mengaitkan sensor.', 'warning');
+        return;
+      }
+      if (asset.province !== sensor.area) {
+        notify('Pengaitan sensor ditolak', 'Sensor dan objek pertanggungan harus berada di provinsi yang sama.', 'error');
+        return;
+      }
+      setAssets((prev) => prev.map((item) => item.id === asset.id ? { ...item, sensorId:id } : item));
+      setSensors((prev) => prev.map((item) => item.id === id ? { ...item, lifecycleStatus:'Terpasang', linkedAssetId:asset.id, pendingAssetId:'', online:false, telemetryAt:stamp() } : item));
+      log('Sensor dikaitkan ke objek', `${sensor.name} dipasang pada ${asset.name}.`);
+      notify('Sensor terpasang', `${sensor.name} berhasil dikaitkan ke ${asset.name}.`);
+      return;
+    }
+
+    if (nextStatus === 'Aktif/Online') {
+      if (!['Terpasang','Terputus/Offline','Butuh Kalibrasi'].includes(currentStatus)) return;
+      if (!gatewayStatus) {
+        notify('Gateway terputus', 'Pulihkan koneksi gateway sebelum mengaktifkan sensor.', 'error');
+        return;
+      }
+      setSensors((prev) => prev.map((item) => item.id === id ? {
+        ...item,
+        lifecycleStatus:'Aktif/Online',
+        online:true,
+        dataStatus:'Valid',
+        pendingSync:false,
+        telemetryAt:stamp(),
+        lastValidation:''
+      } : item));
+      log('Koneksi sensor normal', `${sensor.name} kembali Aktif/Online.`);
+      notify('Sensor aktif', `${sensor.name} siap digunakan untuk monitoring IoT.`, 'success');
+      return;
+    }
+
+    if (['Terputus/Offline','Butuh Kalibrasi','Rusak','Dinonaktifkan'].includes(nextStatus) && currentStatus === 'Aktif/Online') {
+      setSensors((prev) => prev.map((item) => item.id === id ? {
+        ...item,
+        lifecycleStatus:nextStatus,
+        online:false,
+        telemetryAt:stamp(),
+        lifecycleClosed:false
+      } : item));
+      log('Perubahan lifecycle sensor', `${sensor.name}: Aktif/Online → ${nextStatus}.`);
+      notify('Status sensor diperbarui', `${sensor.name} sekarang ${nextStatus}.`, nextStatus === 'Rusak' ? 'error' : 'warning');
+    }
+  };
+
+  const replaceSensor = (id) => {
+    const sensor = sensors.find((item) => item.id === id);
+    if (!sensor || sensorLifecycleStatus(sensor) !== 'Rusak') return;
+    setSensors((prev) => prev.map((item) => item.id === id ? { ...item, lifecycleClosed:true } : item));
+    log('Sensor diganti', `${sensor.name} ditandai telah diganti; perangkat pengganti dapat diregistrasikan sebagai sensor baru.`);
+    notify('Penggantian sensor dicatat', 'Sensor lama tetap tersimpan sebagai riwayat. Daftarkan perangkat pengganti melalui Registrasi sensor.');
+  };
+
+  const closeSensor = (id) => {
+    const sensor = sensors.find((item) => item.id === id);
+    if (!sensor || sensorLifecycleStatus(sensor) !== 'Dinonaktifkan') return;
+    setSensors((prev) => prev.map((item) => item.id === id ? { ...item, lifecycleClosed:true } : item));
+    log('Sensor ditutup', `${sensor.name} dilepas dan siklus perangkat ditutup.`);
+    notify('Siklus sensor ditutup', `${sensor.name} tidak lagi digunakan.`, 'success');
+  };
+
+  const invalidTelemetry = (id) => {
+    const sensor = sensors.find((s) => s.id === id);
+    if (!sensor || sensorLifecycleStatus(sensor) !== 'Aktif/Online') return;
+    setSensors((prev) => prev.map((s) => s.id === id ? {
+      ...s,
+      dataStatus:'Tidak Valid',
+      pendingSync:true,
+      lifecycleStatus:'Butuh Kalibrasi',
+      online:false,
+      lastValidation:'Payload di luar rentang parameter (simulasi).'
+    } : s));
+    log('Validasi data sensor', `${sensor.area}: anomali data menyebabkan status Butuh Kalibrasi.`);
+    notify('Sensor butuh kalibrasi', 'Payload tidak valid dicatat. Sensor masuk ke status Butuh Kalibrasi hingga pemeriksaan selesai.', 'warning');
+  };
   const updateThresholds = (next) => { setThresholds(next); log('Konfigurasi threshold', 'Parameter risiko dan sensor diperbarui.'); notify('Konfigurasi tersimpan', 'Threshold baru akan digunakan pada monitoring.'); };
   const registerSensor = (form) => {
     if (!gatewayStatus) { notify('Registrasi diblokir', 'Hubungkan gateway sebelum mendaftarkan sensor baru.', 'error'); return; }
@@ -1795,11 +2440,26 @@ function App() {
     if (linkedAsset && linkedAsset.province !== form.area) { notify('Pengaitan sensor ditolak', 'Sensor dan objek pertanggungan harus berada di provinsi yang sama.', 'error'); return; }
     const baseSensor = initialSensors.find((sensor) => sensor.area === form.area) || initialSensors[0];
     const at = stamp();
-    const sensor = { ...baseSensor, id:idFor('iot').toLowerCase(), name:form.name, area:form.area, online:true, deviceType:form.deviceType, base:{ mmi:2.1, water:0.2, vei:0.3, temperature:30 }, telemetryAt:at, history:[{ at, mmi:2.1, water:0.2, vei:0.3, temperature:30 }] };
+    const sensor = {
+      ...baseSensor,
+      id:idFor('iot').toLowerCase(),
+      name:form.name,
+      area:form.area,
+      online:false,
+      lifecycleStatus:'Terdaftar',
+      lifecycleClosed:false,
+      pendingAssetId:linkedAsset?.id || '',
+      linkedAssetId:'',
+      deviceType:form.deviceType,
+      dataStatus:'Valid',
+      pendingSync:false,
+      base:{ mmi:2.1, water:0.2, vei:0.3, temperature:30 },
+      telemetryAt:at,
+      history:[{ at, mmi:2.1, water:0.2, vei:0.3, temperature:30 }]
+    };
     setSensors((prev) => [sensor, ...prev]);
-    if (linkedAsset) setAssets((prev) => prev.map((asset) => asset.id === linkedAsset.id ? { ...asset, sensorId:sensor.id } : asset));
-    log('Registrasi perangkat IoT', `${sensor.name} didaftarkan di ${form.area}${linkedAsset ? ` dan ditautkan ke ${linkedAsset.name}` : ''}.`);
-    notify('Sensor berhasil didaftarkan', `${sensor.name} siap dipantau${linkedAsset ? ` untuk ${linkedAsset.name}` : ''}.`);
+    log('Registrasi perangkat IoT', `${sensor.name} didaftarkan di ${form.area}; status awal Terdaftar.`);
+    notify('Sensor terdaftar', `${sensor.name} tercatat. Lanjutkan dengan Kaitkan ke Objek, kemudian uji koneksi.`);
   };
   const testGateway = () => { setGatewayStatus((prev) => !prev); log('Uji koneksi gateway', `Gateway demo berubah menjadi ${gatewayStatus ? 'terputus' : 'terhubung'}.`); notify('Uji koneksi gateway', gatewayStatus ? 'Koneksi gateway disimulasikan terputus.' : 'Gateway kembali terhubung.', gatewayStatus ? 'warning' : 'success'); };
   const createClaims = (eventId, manualProvince) => {
@@ -1821,6 +2481,7 @@ function App() {
         id:idFor('CLM'), eventId:eventKey, province, assetId:asset.id, status:'Potensi Klaim',
         estimateLow:Math.round(asset.sumInsured * ratio * 0.6),
         estimateHigh:Math.round(asset.sumInsured * ratio * 1.4), assessed:0,
+        assessmentStatus:'Inisiasi',
         assignedAdjusterId:null, adjustmentStatus:'', adjustmentAmount:0, adjustmentNote:'', createdAt:today(),
       };
     });
@@ -1828,14 +2489,180 @@ function App() {
     log('Identifikasi aset terdampak', `${newClaims.length} potensi klaim dibuat untuk wilayah ${province}.`);
     notify('Identifikasi selesai', `${newClaims.length} objek baru berpotensi terdampak di ${province} dan wilayah sekitar.`);
   };
-  const assessClaim = (id, amount) => { setClaims((prev) => prev.map((c) => c.id === id ? { ...c, assessed:amount, status:'Assessment Berjalan' } : c)); log('Assessment klaim', `${id} dinilai sebesar ${money(amount)}.`); notify('Assessment disimpan', 'Estimasi assessment klaim berhasil diperbarui.'); };
+  const assessClaim = (id, amount) => {
+    setClaims((prev) => prev.map((c) => c.id === id ? {
+      ...c,
+      assessed:amount,
+      status:'Assessment Berjalan',
+      assessmentStatus:'Estimasi Awal'
+    } : c));
+    log('Assessment klaim', `${id} dinilai sebesar ${money(amount)}.`);
+    notify('Assessment disimpan', 'Claim Assessment berpindah ke status Estimasi Awal.');
+  };
   const assignAdjuster = (claimId, assignee) => { const claim = claims.find((c) => c.id === claimId); if (!claim) return; const task = { id:idFor('ADJ'), kind:'adjuster', assetId:claim.assetId, claimId, assignedTo:assignee, createdBy:user.id, dueDate:'2026-11-10', status:'Ditugaskan', findings:'', condition:'', evidence:[], submittedAt:null, reviewNote:'', verification:'Menunggu', createdAt:today() }; setAssignments((prev) => [task, ...prev]); setClaims((prev) => prev.map((c) => c.id === claimId ? { ...c, assignedAdjusterId:assignee, status:'Menunggu Adjustment' } : c)); log('Penugasan adjuster', `${claimId} ditugaskan ke ${users.find((u) => u.id === assignee)?.name}.`); notify('Adjuster ditugaskan', 'Akses adjuster dibatasi pada aset yang dipilih.'); };
-  const submitAdjustment = (claimId, amount) => { setClaims((prev) => prev.map((c) => c.id === claimId ? { ...c, adjustmentAmount:amount, adjustmentStatus:'Menunggu Review', status:'Menunggu Review' } : c)); log('Adjustment dikirim', `${claimId}: ${money(amount)}.`); notify('Hasil adjustment dikirim', 'Claim Officer dapat meninjau hasil pada UC-07.'); };
-  const reviewAdjustment = (claimId, accepted) => { setClaims((prev) => prev.map((c) => c.id === claimId ? { ...c, status:accepted ? 'Selesai' : 'Adjustment Revisi', adjustmentStatus:accepted ? 'Disetujui' : 'Revisi', assessed:accepted ? c.adjustmentAmount : c.assessed } : c)); log('Review adjustment', `${claimId}: ${accepted ? 'disetujui' : 'dikembalikan'}.`); notify('Review adjustment disimpan', accepted ? 'Klaim ditandai selesai.' : 'Adjustment dikembalikan kepada adjuster.', accepted ? 'success' : 'warning'); };
+  const submitAdjustment = (claimId, amount) => { setClaims((prev) => prev.map((c) => c.id === claimId ? { ...c, adjustmentAmount:amount, adjustmentStatus:'Menunggu Review', assessmentStatus:'Menunggu Review', status:'Menunggu Review' } : c)); log('Adjustment dikirim', `${claimId}: ${money(amount)}.`); notify('Hasil adjustment dikirim', 'Claim Officer dapat meninjau hasil pada UC-07.'); };
+  const reviewAdjustment = (claimId, accepted) => {
+    const task = assignments.find((x) => x.kind === 'adjuster' && x.claimId === claimId);
+    const claim = claims.find((c) => c.id === claimId);
+    const submittedAmount = Number(claim?.adjustmentAmount) > 0
+      ? Number(claim.adjustmentAmount)
+      : Number(task?.adjustmentAmount) > 0
+        ? Number(task.adjustmentAmount)
+        : Number(claim?.adjustmentAmount || 0);
+
+    if (task) {
+      setAssignments((prev) => prev.map((x) => x.id === task.id ? {
+        ...x,
+        status: accepted ? 'Final' : 'Revisi',
+        reviewNote: accepted
+          ? 'Hasil adjustment disetujui oleh Claim Officer.'
+          : 'Hasil adjustment perlu dilengkapi.'
+      } : x));
+    }
+
+    setClaims((prev) => prev.map((c) => c.id === claimId ? {
+      ...c,
+      status: accepted ? 'Selesai' : 'Menunggu Adjustment',
+      adjustmentStatus: accepted ? 'Disetujui' : 'Revisi',
+      assessmentStatus: accepted ? 'Disetujui' : 'Butuh Revisi',
+      adjustmentAmount: submittedAmount ?? c.adjustmentAmount,
+      assessed: accepted ? (submittedAmount ?? c.assessed) : c.assessed
+    } : c));
+
+    log('Review adjustment', `${claimId}: ${accepted ? 'disetujui' : 'dikembalikan'}.`);
+    notify('Review adjustment disimpan', accepted ? 'Klaim ditandai selesai.' : 'Adjustment dikembalikan kepada adjuster.', accepted ? 'success' : 'warning');
+  };
+  const finalizeClaimAssessment = (claimId) => {
+    const claim = claims.find((item) => item.id === claimId);
+    if (!claim || claimAssessmentLifecycleFromLegacy(claim) !== 'Disetujui') return;
+    setClaims((prev) => prev.map((item) => item.id === claimId ? {
+      ...item,
+      assessmentStatus:'Final',
+      assessmentFinalAt:today()
+    } : item));
+    log('Claim Assessment difinalisasi', `${claimId}: nilai klaim dikunci.`);
+    notify('Claim Assessment final', `${claimId} telah mencapai status Final.`, 'success');
+  };
+
+  const reassessClaim = (claimId) => {
+    const claim = claims.find((item) => item.id === claimId);
+    if (!claim || claimAssessmentLifecycleFromLegacy(claim) !== 'Butuh Revisi') return;
+    const asset = assetById(assets, claim.assetId);
+    const ratio = asset && asset.province === claim.province ? 0.065 : 0.03;
+    const estimateLow = asset ? Math.round(asset.sumInsured * ratio * 0.6) : claim.estimateLow;
+    const estimateHigh = asset ? Math.round(asset.sumInsured * ratio * 1.4) : claim.estimateHigh;
+
+    setClaims((prev) => prev.map((item) => item.id === claimId ? {
+      ...item,
+      estimateLow,
+      estimateHigh,
+      status:'Menunggu Adjustment',
+      adjustmentStatus:'Revisi',
+      assessmentStatus:'Estimasi Awal'
+    } : item));
+    log('Reassess estimasi klaim', `${claimId}: kembali ke Estimasi Awal.`);
+    notify('Estimasi dinilai ulang', `${claimId} kembali ke status Estimasi Awal untuk penilaian lanjutan.`, 'success');
+  };
+
   const createAssignment = ({ kind='survey', assetId, assignee, dueDate, createdBy }) => { const task = { id:idFor(kind === 'adjuster' ? 'ADJ' : 'SUR'), kind, assetId, assignedTo:assignee, createdBy, dueDate, status:'Ditugaskan', findings:'', condition:'', evidence:[], submittedAt:null, reviewNote:'', verification:'Menunggu', createdAt:today() }; setAssignments((prev) => [task, ...prev]); log('Penugasan dibuat', `${task.id} untuk ${assetById(assets,assetId)?.name || assetId}.`); notify('Penugasan dibuat', 'Akses diberikan hanya pada objek yang ditugaskan.'); };
-  const updateAssignment = (id, patch) => { const task = assignments.find((x) => x.id === id); setAssignments((prev) => prev.map((x) => x.id === id ? { ...x, ...patch } : x)); if (task?.kind === 'adjuster' && task.claimId && ['Final','Revisi','Dikirim'].includes(patch.status)) { setClaims((prev) => prev.map((c) => c.id === task.claimId ? { ...c, status:patch.status === 'Final' ? 'Selesai' : patch.status === 'Revisi' ? 'Adjustment Revisi' : 'Menunggu Review', adjustmentStatus:patch.status === 'Final' ? 'Disetujui' : patch.status === 'Revisi' ? 'Revisi' : 'Menunggu Review', adjustmentAmount:patch.adjustmentAmount ?? c.adjustmentAmount, adjustmentNote:patch.findings ?? c.adjustmentNote, assessed:patch.status === 'Final' ? (patch.adjustmentAmount ?? c.assessed) : c.assessed } : c)); } log('Pembaruan penugasan', `${id}: ${patch.status || 'data diperbarui'}.`); notify(patch.status === 'Final' ? 'Penugasan difinalisasi' : patch.status === 'Dikirim' ? 'Hasil berhasil dikirim' : 'Penugasan diperbarui', `${task?.id || id} · ${patch.status || 'perubahan disimpan'}.`); };
-  const createRecommendation = (item) => { const rec = { id:idFor('MIT'), ...item, status:'Menunggu Tindak Lanjut', actionNote:'', evidence:[], reviewNote:'', createdAt:today() }; setRecommendations((prev) => [rec, ...prev]); log('Rekomendasi mitigasi ditetapkan', `${rec.title} untuk ${assetById(assets,rec.assetId)?.name}.`); notify('Rekomendasi dikirim', 'Tertanggung dapat melihat rekomendasi pada akunnya.'); };
-  const updateRecommendation = (id, patch) => { const existing = recommendations.find((x) => x.id === id); setRecommendations((prev) => prev.map((x) => x.id === id ? { ...x, ...patch } : x)); if (patch.status === 'Selesai') { const asset = assetById(assets,existing.assetId); const nextScore = Math.max(5, asset.riskScore - 8); setAssets((prev) => prev.map((x) => x.id === asset.id ? { ...x, riskScore:nextScore, lastAssessment:today() } : x)); setRapor((prev) => [...prev, { id:idFor('RAP'), assetId:asset.id, date:today(), text:`Mitigasi ${existing.title} selesai; risk score ${asset.riskScore} → ${nextScore}.` }]); } log('Tindak lanjut mitigasi', `${id}: ${patch.status}.`); notify('Status mitigasi diperbarui', `${id} · ${patch.status}.`); };
+  const updateAssignment = (id, patch) => {
+    const task = assignments.find((x) => x.id === id);
+    setAssignments((prev) => prev.map((x) => x.id === id ? { ...x, ...patch } : x));
+
+    if (task?.kind === 'adjuster' && task.claimId && ['Final','Revisi','Dikirim'].includes(patch.status)) {
+      setClaims((prev) => prev.map((c) => {
+        if (c.id !== task.claimId) return c;
+
+        const submittedAdjustment = Number(patch.adjustmentAmount) > 0
+          ? Number(patch.adjustmentAmount)
+          : Number(c.adjustmentAmount) > 0
+            ? Number(c.adjustmentAmount)
+            : Number(task.adjustmentAmount) > 0
+              ? Number(task.adjustmentAmount)
+              : 0;
+
+        return {
+          ...c,
+          status: patch.status === 'Final'
+            ? 'Selesai'
+            : patch.status === 'Revisi'
+              ? 'Menunggu Adjustment'
+              : 'Menunggu Review',
+          adjustmentStatus: patch.status === 'Final'
+            ? 'Disetujui'
+            : patch.status === 'Revisi'
+              ? 'Revisi'
+              : 'Menunggu Review',
+          assessmentStatus: patch.status === 'Final'
+            ? 'Disetujui'
+            : patch.status === 'Revisi'
+              ? 'Butuh Revisi'
+              : 'Menunggu Review',
+          adjustmentAmount: submittedAdjustment ?? 0,
+          adjustmentNote: patch.findings ?? c.adjustmentNote,
+          assessed: patch.status === 'Final'
+            ? (submittedAdjustment ?? c.assessed)
+            : c.assessed
+        };
+      }));
+    }
+
+    log('Pembaruan penugasan', `${id}: ${patch.status || 'data diperbarui'}.`);
+    notify(
+      patch.status === 'Final' ? 'Penugasan difinalisasi' : patch.status === 'Dikirim' ? 'Hasil berhasil dikirim' : 'Penugasan diperbarui',
+      `${task?.id || id} · ${patch.status || 'perubahan disimpan'}.`
+    );
+  };
+  const createRecommendation = (item) => {
+    const rec = {
+      id:idFor('MIT'),
+      ...item,
+      status:'Menunggu Tindak Lanjut',
+      lifecycleStatus:'Dibuat',
+      actionNote:'',
+      evidence:[],
+      reviewNote:'',
+      createdAt:today()
+    };
+    setRecommendations((prev) => [rec, ...prev]);
+    log('Rekomendasi mitigasi disusun', `${rec.title} untuk ${assetById(assets,rec.assetId)?.name}.`);
+    notify('Rekomendasi disusun', 'Status awal Dibuat. Risk Engineering dapat mengirimkannya kepada tertanggung.');
+  };
+
+  const updateRecommendation = (id, patch) => {
+    const existing = recommendations.find((x) => x.id === id);
+    if (!existing) return;
+
+    const nextLifecycleStatus = patch.lifecycleStatus || recommendationLifecycleFromLegacy({ ...existing, ...patch });
+    const nextBusinessStatus = recommendationBusinessStatus(nextLifecycleStatus);
+
+    setRecommendations((prev) => prev.map((x) => x.id === id ? {
+      ...x,
+      ...patch,
+      lifecycleStatus:nextLifecycleStatus,
+      status:nextBusinessStatus,
+      ...(nextLifecycleStatus === 'Terkirim' ? { sentAt:today() } : {}),
+      ...(nextLifecycleStatus === 'Sedang Dikerjakan' ? { startedAt:today() } : {}),
+      ...(nextLifecycleStatus === 'Selesai Dilaporkan' ? { submittedAt:today() } : {}),
+      ...(nextLifecycleStatus === 'Terverifikasi' ? { verifiedAt:today() } : {})
+    } : x));
+
+    if (nextLifecycleStatus === 'Terverifikasi') {
+      const asset = assetById(assets,existing.assetId);
+      if (asset) {
+        const nextScore = Math.max(5, asset.riskScore - 8);
+        setAssets((prev) => prev.map((x) => x.id === asset.id ? { ...x, riskScore:nextScore, lastAssessment:today() } : x));
+        setRapor((prev) => [...prev, { id:idFor('RAP'), assetId:asset.id, date:today(), text:`Mitigasi ${existing.title} selesai; risk score ${asset.riskScore} → ${nextScore}.` }]);
+      }
+    }
+
+    log('Transisi State Machine rekomendasi mitigasi', `${id}: ${nextLifecycleStatus}.`);
+    notify(
+      nextLifecycleStatus === 'Terverifikasi' ? 'Rekomendasi terverifikasi' : 'Status mitigasi diperbarui',
+      `${id} · ${nextLifecycleStatus}.`,
+      nextLifecycleStatus === 'Perlu Revisi' || nextLifecycleStatus === 'Terlambat' ? 'warning' : 'success'
+    );
+  };
   const inviteSelfSurvey = (assetId, createdBy) => {
     const asset = assetById(assets, assetId);
     if (!asset || asset.riskScore >= 40) { notify('Self-survey tidak memenuhi syarat', 'Objek harus memiliki risk score di bawah 40.', 'error'); return; }
@@ -1861,7 +2688,34 @@ function App() {
     notify('Self-survey terkirim', 'Risk Engineering akan meninjau kelengkapan jawaban.');
   };
   const reviewSelfSurvey = (id, status, note) => { setSelfSurveys((prev) => prev.map((s) => s.id === id ? { ...s, status, reviewNote:note } : s)); log('Review self-survey', `${id}: ${status}.`); notify('Review self-survey selesai', note, status === 'Disetujui' ? 'success' : 'warning'); };
-  const decision = (assetId, kind, note) => { setDecisions((prev) => [...prev.filter((d) => d.assetId !== assetId), { id:idFor('DEC'), assetId, kind, note, date:today(), actor:user?.name }]); log('Keputusan underwriting / prioritas', `${assetById(assets,assetId)?.name}: ${kind}.`); notify('Keputusan tersimpan', `${kind} telah dicatat.`); };
+  const decision = (assetId, kind, note) => {
+    if (!kind) return;
+    const asset = assetById(assets, assetId);
+    const underwritingKinds = ['Diterima', 'Ditolak', 'Moratorium', 'Perlu Assessment'];
+
+    if (underwritingKinds.includes(kind) && policyStatusOf(asset) !== 'Pending Underwriting') {
+      notify('Polis belum diajukan', 'Keputusan Underwriter hanya dapat dicatat saat status polis Pending Underwriting.', 'warning');
+      return;
+    }
+
+    setDecisions((prev) => [
+      ...prev.filter((item) => item.assetId !== assetId),
+      { id:idFor('DEC'), assetId, kind, note, date:today(), actor:user?.name },
+    ]);
+
+    if (kind === 'Ditolak') {
+      transitionPolicyStatus(assetId, 'Ditolak', 'Underwriter menolak');
+    } else if (kind === 'Diterima') {
+      log('Keputusan underwriting', `${asset?.name}: Diterima. Menunggu konfirmasi premi lunas.`);
+      notify('Keputusan diterima tersimpan', 'Status Polis tetap Pending Underwriting sampai premi dikonfirmasi lunas. Buka detail objek untuk menyelesaikan aktivasi.', 'info');
+    } else if (kind === 'Moratorium' || kind === 'Perlu Assessment') {
+      log('Keputusan underwriting', `${asset?.name}: ${kind}. Status Polis tetap Pending Underwriting.`);
+      notify('Keputusan tersimpan', `${kind} dicatat sebagai keputusan underwriting; status Polis tetap Pending Underwriting.`, 'success');
+    } else {
+      log('Keputusan underwriting / prioritas', `${asset?.name}: ${kind}.`);
+      notify('Keputusan tersimpan', `${kind} telah dicatat.`);
+    }
+  };
   const updateUser = (next) => { const saved = { ...next, username: demoCodeByUserId[next.id] || next.username }; setUsers((prev) => prev.map((u) => u.id === next.id ? saved : u)); if (user?.id === next.id) { if (!saved.active) { setUser(null); setPage('UC-05'); } else { setUser(saved); if (saved.role !== user.role) setPage(landingPageForRole(saved.role)); } } log('Administrasi pengguna', `${saved.username}: role ${saved.roleLabel}, status ${saved.active ? 'aktif' : 'nonaktif'}.`); notify('Pengguna diperbarui', `${saved.name} berhasil diperbarui.`); };
   const addUser = (newUser) => {
     const username = String(newUser.username || '').trim();
@@ -1940,13 +2794,13 @@ function App() {
   const renderPage = () => {
     const props = { user, assets, sensors, alerts, assignments, recommendations, thresholds };
     switch (page) {
-      case 'UC-01': return <UC01Page assets={assets} sensors={sensors} users={users} onSaveAsset={saveAsset} onUploadDataset={uploadDataset} datasetLogs={datasetLogs} onSyncCore={() => syncIntegration('core')} />;
+      case 'UC-01': return <UC01Page assets={assets} sensors={sensors} users={users} decisions={decisions} onSaveAsset={saveAsset} onUploadDataset={uploadDataset} datasetLogs={datasetLogs} onSyncCore={() => syncIntegration('core')} onSubmitPolicy={submitPolicy} onTransitionPolicy={transitionPolicyStatus} onConfirmPolicyPremiumPaid={confirmPolicyPremiumPaid} />;
       case 'UC-02': return <UC02Page assets={assets} sensors={sensors} events={events} alerts={alerts} />;
       case 'UC-03': return <UC03Page assets={assets} sensors={sensors} onSaveScore={saveScore} />;
       case 'UC-04': return <UC04Page user={user} assets={assets} sensors={sensors} alerts={alerts} onCreateAlert={createAlert} onUpdateAlert={updateAlert} onTelemetry={sendTelemetry} onNormalTelemetry={sendNormalTelemetry} />;
       case 'UC-05': return <UC05Page user={user} assets={assets} sensors={sensors} events={events} decisions={decisions} onDecision={decision} activeEvent={events.find((e) => e.status !== 'Selesai')} simulationEvent={activeMapEvent} thresholds={thresholds} assignments={assignments} recommendations={recommendations} rapor={rapor} onSimulate={runMapSimulation} onReset={resetMapSimulation} onToggleSensor={toggleSensor} onUseSystemData={useSystemData} onSyncSystemData={syncSystemData} onCompleteEvent={completeSystemMapEvent} alerts={alerts} gatewayStatus={gatewayStatus} />;
-      case 'UC-06': return <UC06Page sensors={sensors} assets={assets} thresholds={thresholds} onToggleSensor={toggleSensor} onUpdateThresholds={updateThresholds} onRegisterSensor={registerSensor} onTestGateway={testGateway} onInvalidTelemetry={invalidTelemetry} gatewayStatus={gatewayStatus} />;
-      case 'UC-07': return <UC07Page user={user} users={users} assets={assets} claims={claims} events={events} assignments={assignments} onCreateClaims={createClaims} onAssessClaim={assessClaim} onAssignAdjuster={assignAdjuster} onSubmitAdjustment={submitAdjustment} onReviewAdjustment={reviewAdjustment} onNavigate={authorizedGo} />;
+      case 'UC-06': return <UC06Page sensors={sensors} assets={assets} thresholds={thresholds} onToggleSensor={toggleSensor} onTransitionSensor={transitionSensor} onReplaceSensor={replaceSensor} onCloseSensor={closeSensor} onUpdateThresholds={updateThresholds} onRegisterSensor={registerSensor} onTestGateway={testGateway} onInvalidTelemetry={invalidTelemetry} gatewayStatus={gatewayStatus} />;
+      case 'UC-07': return <UC07Page user={user} users={users} assets={assets} claims={claims} events={events} assignments={assignments} onCreateClaims={createClaims} onAssessClaim={assessClaim} onAssignAdjuster={assignAdjuster} onSubmitAdjustment={submitAdjustment} onReviewAdjustment={reviewAdjustment} onFinalizeClaimAssessment={finalizeClaimAssessment} onReassessClaim={reassessClaim} onNavigate={authorizedGo} />;
       case 'UC-08': return <UC08Page
         user={user}
         users={users}
